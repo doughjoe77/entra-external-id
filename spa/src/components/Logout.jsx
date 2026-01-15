@@ -1,8 +1,8 @@
-import { useMsal } from "@azure/msal-react";
+//import { useMsal } from "@azure/msal-react";
 import "./logout.css";
 
 export default function Logout() {
-  const { instance } = useMsal();
+  //const { instance } = useMsal();
 
   return (
     <div className="logout-container">

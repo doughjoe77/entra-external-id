@@ -9,12 +9,12 @@ export default function Home() {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
 
-  const [tokenType, setTokenType] = useState("id"); // "id" or "access"
+  const [tokenType, setTokenType] = useState("id");
   const [accessToken, setAccessToken] = useState(null);
 
   // Acquire access token on load
   useEffect(() => {
-    if (!account) return; // wait until MSAL loads the account
+    if (!account) return;
 
     async function fetchAccessToken() {
       try {
@@ -22,8 +22,6 @@ export default function Home() {
           ...loginRequest,
           account: account
         });
-
-        //console.log("Access token from MSAL:", result.accessToken);
         setAccessToken(result.accessToken);
       } catch (err) {
         console.error("Failed to acquire access token:", err);
@@ -33,8 +31,7 @@ export default function Home() {
     fetchAccessToken();
   }, [instance, account]);
 
-  // Timer to automatically logout the user after a set amount of time, it's a 
-  // rolling time so user activity on the page will reset the timer
+  // Rolling inactivity logout timer
   useEffect(() => {
     if (!account) return;
 
@@ -52,68 +49,75 @@ export default function Home() {
       }, timeoutMs);
     };
 
-    // Start the timer immediately
     resetTimer();
 
-    // Activity events that count as “active”
-    const activityEvents = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "touchstart",
-      "scroll"
-    ];
-
-    activityEvents.forEach((event) =>
-      window.addEventListener(event, resetTimer)
-    );
+    const activityEvents = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+    activityEvents.forEach((event) => window.addEventListener(event, resetTimer));
 
     return () => {
       clearTimeout(timer);
-      activityEvents.forEach((event) =>
-        window.removeEventListener(event, resetTimer)
-      );
+      activityEvents.forEach((event) => window.removeEventListener(event, resetTimer));
     };
   }, [account, instance]);
 
-
-
-  // Extract claims based on selected token
+  // Extract claims
   const idClaims = account?.idTokenClaims || {};
-  const accessClaims = accessToken
-    ? parseJwt(accessToken)
-    : {};
-
+  const accessClaims = accessToken ? parseJwt(accessToken) : {};
   const claims = tokenType === "id" ? idClaims : accessClaims;
 
   return (
     <div className="home-container">
-      <h1>Welcome to the protected app</h1>
-      <p>You are authenticated via Entra External ID.</p>
 
-      <div className="token-selector">
-        <label>Select token:</label>
-        <select
-          value={tokenType}
-          onChange={(e) => setTokenType(e.target.value)}
+      {/* HEADER (fixed, logout right-aligned) */}
+      <header className="app-header">
+        <h1 className="header-title">OpenID Connect Federated with Entra SPA</h1>
+
+        <button
+          className="logout-button"
+          onClick={() =>
+            instance.logoutRedirect({
+              postLogoutRedirectUri: "/logout"
+            })
+          }
         >
-          <option value="id">ID Token</option>
-          <option value="access">Access Token</option>
-        </select>
-      </div>
+          Logout
+        </button>
+      </header>
 
-      <h2>JWT Claims ({tokenType === "id" ? "ID Token" : "Access Token"})</h2>
+      {/* MAIN CONTENT */}
+      <main className="main-content">
+        <p>You are authenticated via Entra External ID.</p>
 
-      <div className="claims-container">
-        {Object.entries(claims).map(([key, value]) => (
-          <div key={key} className="claim-row">
-            <span className="claim-name">{key}</span>
-            <span className="claim-value">
-              {typeof value === "object" ? JSON.stringify(value) : String(value)}
-            </span>
-          </div>
-        ))}
-      </div>
+        <div className="token-selector">
+          <label>Select token:</label>
+          <select
+            value={tokenType}
+            onChange={(e) => setTokenType(e.target.value)}
+          >
+            <option value="id">ID Token</option>
+            <option value="access">Access Token</option>
+          </select>
+        </div>
+
+        <h2>JWT Claims ({tokenType === "id" ? "ID Token" : "Access Token"})</h2>
+
+        <div className="claims-container">
+          {Object.entries(claims).map(([key, value]) => (
+            <div key={key} className="claim-row">
+              <span className="claim-name">{key}</span>
+              <span className="claim-value">
+                {typeof value === "object" ? JSON.stringify(value) : String(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {/* FOOTER (fixed) */}
+      <footer className="app-footer">
+        © 2026 JG Labs Inc — All Rights Reserved
+      </footer>
+
     </div>
   );
 }
