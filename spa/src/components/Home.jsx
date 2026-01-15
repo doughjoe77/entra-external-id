@@ -13,18 +13,26 @@ export default function Home() {
   const [accessToken, setAccessToken] = useState(null);
 
   // Acquire access token on load
-  useEffect(() => {
-    async function fetchAccessToken() {
-      try {
-        const result = await instance.acquireTokenSilent(loginRequest);
-        setAccessToken(result.accessToken);
-      } catch (err) {
-        console.error("Failed to acquire access token:", err);
-      }
-    }
+useEffect(() => {
+  if (!account) return; // wait until MSAL loads the account
 
-    fetchAccessToken();
-  }, [instance]);
+  async function fetchAccessToken() {
+    try {
+      const result = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: account
+      });
+
+      //console.log("Access token from MSAL:", result.accessToken);
+      setAccessToken(result.accessToken);
+    } catch (err) {
+      console.error("Failed to acquire access token:", err);
+    }
+  }
+
+  fetchAccessToken();
+}, [instance, account]);
+
 
   // Extract claims based on selected token
   const idClaims = account?.idTokenClaims || {};
