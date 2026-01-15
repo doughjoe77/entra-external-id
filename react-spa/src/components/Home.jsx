@@ -44,7 +44,9 @@ export default function Home() {
       clearTimeout(timer);
       timer = setTimeout(() => {
         instance.logoutRedirect({
-          postLogoutRedirectUri: "/logout"
+          account: instance.getActiveAccount(),
+          postLogoutRedirectUri: "/logout", 
+          logoutHint: instance.getActiveAccount()?.username
         });
       }, timeoutMs);
     };
@@ -76,7 +78,9 @@ export default function Home() {
           className="logout-button"
           onClick={() =>
             instance.logoutRedirect({
-              postLogoutRedirectUri: "/logout"
+              account: instance.getActiveAccount(),
+              postLogoutRedirectUri: "/logout", 
+              logoutHint: instance.getActiveAccount()?.username
             })
           }
         >

@@ -7,7 +7,7 @@ export default function Logout() {
   return (
     <div className="logout-container">
       <h1>You have been logged out</h1>
-      <p>Your session expired or you were logged out automatically.</p>
+      <p>Your session expired or you manually logged out, to re-authenticate press the <b>Log back in button.</b></p>
 
         <button
         className="login-button"
