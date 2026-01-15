@@ -13,25 +13,69 @@ export default function Home() {
   const [accessToken, setAccessToken] = useState(null);
 
   // Acquire access token on load
-useEffect(() => {
-  if (!account) return; // wait until MSAL loads the account
+  useEffect(() => {
+    if (!account) return; // wait until MSAL loads the account
 
-  async function fetchAccessToken() {
-    try {
-      const result = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: account
-      });
+    async function fetchAccessToken() {
+      try {
+        const result = await instance.acquireTokenSilent({
+          ...loginRequest,
+          account: account
+        });
 
-      //console.log("Access token from MSAL:", result.accessToken);
-      setAccessToken(result.accessToken);
-    } catch (err) {
-      console.error("Failed to acquire access token:", err);
+        //console.log("Access token from MSAL:", result.accessToken);
+        setAccessToken(result.accessToken);
+      } catch (err) {
+        console.error("Failed to acquire access token:", err);
+      }
     }
-  }
 
-  fetchAccessToken();
-}, [instance, account]);
+    fetchAccessToken();
+  }, [instance, account]);
+
+  // Timer to automatically logout the user after a set amount of time, it's a 
+  // rolling time so user activity on the page will reset the timer
+  useEffect(() => {
+    if (!account) return;
+
+    const minutes = parseInt(process.env.REACT_APP_LOGOUT_MINUTES || "60", 10);
+    const timeoutMs = minutes * 60 * 1000;
+
+    let timer;
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        instance.logoutRedirect({
+          postLogoutRedirectUri: "/logout"
+        });
+      }, timeoutMs);
+    };
+
+    // Start the timer immediately
+    resetTimer();
+
+    // Activity events that count as “active”
+    const activityEvents = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "touchstart",
+      "scroll"
+    ];
+
+    activityEvents.forEach((event) =>
+      window.addEventListener(event, resetTimer)
+    );
+
+    return () => {
+      clearTimeout(timer);
+      activityEvents.forEach((event) =>
+        window.removeEventListener(event, resetTimer)
+      );
+    };
+  }, [account, instance]);
+
 
 
   // Extract claims based on selected token

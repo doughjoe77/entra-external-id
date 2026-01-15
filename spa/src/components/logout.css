@@ -1,0 +1,28 @@
+.logout-container {
+  background-color: #D6ECF3;
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.login-button {
+  margin-top: 20px;
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: none;
+  background-color: #0078d4;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.login-button:hover {
+  background-color: #005fa3;
+}
