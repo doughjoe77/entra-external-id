@@ -7,5 +7,5 @@ export const msalConfig = {
 };
 
 export const loginRequest = {
-  scopes: ["openid", "profile", "email"]
+  scopes: ["openid", "profile", "email", "api://b31552fd-fb5a-4c61-9d87-0b54fa8905a0/API.Read"]
 };
