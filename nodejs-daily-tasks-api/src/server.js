@@ -12,8 +12,9 @@ const app = express();
 
 // --- Load environment variables ---
 const PORT = process.env.PORT || 4000;
-const TENANT_ID = process.env.TENANT_ID;
-const API_AUDIENCE = process.env.API_AUDIENCE;
+const JWK_URI = process.env.JWK_URI;
+const AUDIENCE = process.env.AUDIENCE;
+const ISSUER = process.env.ISSUER;
 
 // --- Basic middleware ---
 app.use(cors());
@@ -32,14 +33,11 @@ const jwtCheck = jwt({
     cache: true,
     rateLimit: true,
     jwksRequestsPerMinute: 5,
-    //jwksUri: `https://login.microsoftonline.com/${TENANT_ID}/discovery/v2.0/keys`
-    jwksUri: `https://9cf28bb0-79d1-4ef0-bdc0-170f670708f4.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/discovery/v2.0/keys`
+    jwksUri: JWK_URI
   }),
   algorithms: ['RS256'],
-  //audience: API_AUDIENCE,
-  audience: `b31552fd-fb5a-4c61-9d87-0b54fa8905a0`,
-  //issuer: `https://login.microsoftonline.com/${TENANT_ID}/v2.0`,
-  issuer: `https://9cf28bb0-79d1-4ef0-bdc0-170f670708f4.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/v2.0`
+  audience: AUDIENCE,
+  issuer: process.env.ISSUER
   
 });
 
