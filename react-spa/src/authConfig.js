@@ -1,11 +1,43 @@
+// // src/authConfig.js
+
+const clientId = process.env.REACT_APP_CLIENT_ID;
+//const tenantId = process.env.REACT_APP_TENANT_ID;
+const redirectUri = process.env.REACT_APP_REDIRECT_URI;
+const apiScope = process.env.REACT_APP_API_SCOPE;
+const authority = process.env.REACT_APP_AUTHORITY;
+
+// console.log(clientId);
+
+// // Build authority automatically unless overridden
+// const authority =
+//   process.env.REACT_APP_AUTHORITY ||
+//   `https://login.microsoftonline.com/${tenantId}`;
+
+// export const msalConfig = {
+//   auth: {
+//     clientId,
+//     authority,
+//     redirectUri
+//   },
+//   cache: {
+//     cacheLocation: "sessionStorage",
+//     storeAuthStateInCookie: false
+//   }
+// };
+
+// export const loginRequest = {
+//   scopes: ["openid", "profile", "email", apiScope]
+// };
+
+
 export const msalConfig = {
   auth: {
-    clientId: "404dae9d-aed8-4171-95ae-0e1ab3317a9a",
-    authority: "https://jglab2.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4",
-    redirectUri: "http://localhost:3000",
+    clientId: clientId,
+    authority: authority,
+    redirectUri: redirectUri,
   }
 };
 
 export const loginRequest = {
-  scopes: ["openid", "profile", "email", "api://b31552fd-fb5a-4c61-9d87-0b54fa8905a0/API.Read"]
+  scopes: ["openid", "profile", "email", apiScope]
 };
