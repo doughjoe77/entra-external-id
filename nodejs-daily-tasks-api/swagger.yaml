@@ -1,0 +1,75 @@
+openapi: 3.0.1
+info:
+  title: Daily Tasks API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:4000
+
+paths:
+  /tasks:
+    get:
+      summary: Get daily tasks (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of daily tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        completed:
+                          type: boolean
+        '401':
+          description: Unauthorized
+
+  /tasks-test:
+    get:
+      summary: Get daily tasks (unauthenticated test endpoint)
+      description: Returns the same task payload but does not require a JWT.
+      responses:
+        '200':
+          description: List of daily tasks (no authentication required)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        completed:
+                          type: boolean
+                  note:
+                    type: string
+                    example: This endpoint does NOT require a JWT
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

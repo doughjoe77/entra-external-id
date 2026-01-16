@@ -11,6 +11,7 @@ export default function Home() {
 
   const [tokenType, setTokenType] = useState("id");
   const [accessToken, setAccessToken] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Acquire access token on load
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function Home() {
       timer = setTimeout(() => {
         instance.logoutRedirect({
           account: instance.getActiveAccount(),
-          postLogoutRedirectUri: "/logout", 
+          postLogoutRedirectUri: "/logout",
           logoutHint: instance.getActiveAccount()?.username
         });
       }, timeoutMs);
@@ -67,10 +68,23 @@ export default function Home() {
   const accessClaims = accessToken ? parseJwt(accessToken) : {};
   const claims = tokenType === "id" ? idClaims : accessClaims;
 
+  // Current token string
+  const currentToken =
+    tokenType === "id"
+      ? account?.idToken
+      : accessToken || "";
+
+  // Copy handler
+  const handleCopy = () => {
+    navigator.clipboard.writeText(currentToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="home-container">
 
-      {/* HEADER (fixed, logout right-aligned) */}
+      {/* HEADER */}
       <header className="app-header">
         <h1 className="header-title">OpenID Connect Federated with Entra SPA</h1>
 
@@ -79,7 +93,7 @@ export default function Home() {
           onClick={() =>
             instance.logoutRedirect({
               account: instance.getActiveAccount(),
-              postLogoutRedirectUri: "/logout", 
+              postLogoutRedirectUri: "/logout",
               logoutHint: instance.getActiveAccount()?.username
             })
           }
@@ -103,6 +117,23 @@ export default function Home() {
           </select>
         </div>
 
+        {/* NEW: Token display + copy button */}
+        <div className="token-display">
+          <h2>Current {tokenType === "id" ? "ID Token" : "Access Token"}:</h2>
+
+          <div className="token-box">
+            <textarea
+              readOnly
+              value={currentToken}
+              className="token-textarea"
+            />
+
+            <button className="copy-button" onClick={handleCopy}>
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+
         <h2>JWT Claims ({tokenType === "id" ? "ID Token" : "Access Token"})</h2>
 
         <div className="claims-container">
@@ -117,7 +148,7 @@ export default function Home() {
         </div>
       </main>
 
-      {/* FOOTER (fixed) */}
+      {/* FOOTER */}
       <footer className="app-footer">
         © 2026 JG Labs Inc — All Rights Reserved
       </footer>
