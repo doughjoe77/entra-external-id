@@ -17,7 +17,7 @@ services:
       context: ./nodejs-daily-tasks-api
       dockerfile: Dockerfile
     ports:
-      - "4400:4000"
+      - "4000:4000"
     environment:
       PORT: 4000
       JWK_URI: https://9cf28bb0-79d1-4ef0-bdc0-170f670708f4.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/discovery/v2.0/keys
