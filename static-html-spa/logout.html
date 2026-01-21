@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logged Out</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="config.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+</head>
+
+<body>
+  <header class="app-header">
+    <h1 class="header-title">You are signed out</h1>
+  </header>
+
+  <main class="main-content">
+    <div class="container">
+      <br />
+      <p>You have been successfully logged out.</p>
+
+      <button id="loginBtn" class="login-button">Log back in</button>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    © 2026 JG Labs Inc — All Rights Reserved
+  </footer>
+
+  <script>
+    const msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId: window.appConfig.clientId,
+        authority: window.appConfig.authority,
+        redirectUri: window.appConfig.redirectUri
+      }
+    });
+
+
+  document.getElementById("loginBtn").onclick = () => {
+    window.location.href = window.location.origin + "/";
+  };
+
+
+  </script>
+</body>
+</html>
