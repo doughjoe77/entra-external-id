@@ -86,7 +86,7 @@ export default function Home() {
 
       {/* HEADER */}
       <header className="app-header">
-        <h1 className="header-title">OpenID Connect Federated with Entra SPA</h1>
+        <h1 className="header-title">React SPA</h1>
 
         <button
           className="logout-button"

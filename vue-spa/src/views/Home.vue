@@ -1,7 +1,7 @@
 <template>
   <div class="home-container">
     <header class="app-header">
-      <h1 class="header-title">Task Viewer</h1>
+      <h1 class="header-title">Vue SPA - Task Viewer</h1>
       <button class="logout-button" @click="logoutUser">Logout</button>
     </header>
 
