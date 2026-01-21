@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useMsal } from "../composables/useMsal";
 import { useRouter } from "vue-router";
 
@@ -54,6 +54,41 @@ const router = useRouter();
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
+// ------------------------------
+// Rolling inactivity logout
+// ------------------------------
+let inactivityTimer = null;
+
+function startInactivityTimer() {
+  const minutes = parseInt(import.meta.env.VITE_LOGOUT_MINUTES || "60", 10);
+  const timeoutMs = minutes * 60 * 1000;
+
+  clearTimeout(inactivityTimer);
+
+  inactivityTimer = setTimeout(() => {
+    logoutUser();
+  }, timeoutMs);
+}
+
+function resetInactivityTimer() {
+  startInactivityTimer();
+}
+
+async function logoutUser() {
+  const { msalInstance } = await import("../msalInstance");
+
+  const account =
+    msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+
+  await msalInstance.logoutRedirect({
+    account,
+    postLogoutRedirectUri: "/logout"
+  });
+}
+
+// ------------------------------
+// Load tasks
+// ------------------------------
 async function loadTasks() {
   isLoading.value = true;
   errorMessage.value = "";
@@ -84,27 +119,32 @@ async function loadTasks() {
   }
 }
 
-async function logoutUser() {
-  const { msalInstance } = await import("../msalInstance");
-
-  const account =
-    msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
-
-  await msalInstance.logoutRedirect({
-    account,
-    postLogoutRedirectUri: "/logout"
-  });
-}
-
+// ------------------------------
+// Lifecycle
+// ------------------------------
 onMounted(() => {
   loadTasks();
+  startInactivityTimer();
+
+  const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+  events.forEach((evt) =>
+    window.addEventListener(evt, resetInactivityTimer)
+  );
+});
+
+onBeforeUnmount(() => {
+  clearTimeout(inactivityTimer);
+
+  const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+  events.forEach((evt) =>
+    window.removeEventListener(evt, resetInactivityTimer)
+  );
 });
 </script>
 
 <style scoped src="../assets/home.css"></style>
 
 <style scoped>
-/* Error Banner */
 .error-banner {
   background-color: #ffdddd;
   color: #a30000;
@@ -130,7 +170,6 @@ onMounted(() => {
   background-color: #7a0000;
 }
 
-/* Spinner */
 .spinner-container {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>External ID - No Framework Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="config.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta charset="UTF-8" />
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <h1 class="header-title">External ID Login</h1>
+    <button id="logoutBtn" class="logout-button" style="display:none;">Logout</button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container">
+      <br />
+      <h2>Welcome</h2>
+      <p>This page authenticates using Entra External ID.</p>
+
+      <button id="loginBtn" class="login-button">Login</button>
+
+      <div id="tokenBox" class="token-box" style="display:none;"></div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    © 2026 JG Labs Inc — All Rights Reserved
+  </footer>
+
+  <script>
+    const msalConfig = {
+      auth: {
+        clientId: window.appConfig.clientId,
+        authority: window.appConfig.authority,
+        redirectUri: window.appConfig.redirectUri
+      }
+    };
+
+    const loginRequest = {
+      scopes: [window.appConfig.apiScope]
+    };
+
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+    async function handleRedirect() {
+      const result = await msalInstance.handleRedirectPromise();
+      if (result && result.account) {
+        msalInstance.setActiveAccount(result.account);
+        showUI();
+      } else {
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          msalInstance.setActiveAccount(accounts[0]);
+          showUI();
+        }
+      }
+    }
+
+    function showUI() {
+      const account = msalInstance.getActiveAccount();
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const tokenBox = document.getElementById("tokenBox");
+
+      if (account) {
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+        tokenBox.style.display = "block";
+        tokenBox.innerText = "Signed in as: " + account.username;
+      } else {
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        tokenBox.style.display = "none";
+      }
+    }
+
+    document.getElementById("loginBtn").onclick = () => {
+      msalInstance.loginRedirect(loginRequest);
+    };
+
+    document.getElementById("logoutBtn").onclick = () => {
+      const account = msalInstance.getActiveAccount();
+      msalInstance.logoutRedirect({
+        account,
+        postLogoutRedirectUri: window.location.origin
+      });
+    };
+
+    handleRedirect();
+  </script>
+</body>
+</html>
