@@ -27,11 +27,25 @@ export function useMsal() {
     return result.accessToken;
   }
 
+  async function acquireApiToken() {
+    await ensureAccount();
+    if (!account.value) return null;
+
+    const result = await msalInstance.acquireTokenSilent({
+      ...apiRequest,
+      account: account.value
+    });
+
+    return result.accessToken;
+  }
+
   return {
     account,
     accessToken,
     acquireToken,
+    acquireApiToken,
     login: () => msalInstance.loginRedirect(loginRequest),
     logout: () => msalInstance.logoutRedirect()
   };
+
 }

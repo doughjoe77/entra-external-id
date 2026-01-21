@@ -2,7 +2,7 @@
   <div class="home-container">
     <header class="app-header">
       <h1 class="header-title">Task Viewer</h1>
-      <button class="logout-button" @click="logoutUser">Logout</button>
+      <button class="logout-button" @click="logout">Logout</button>
     </header>
 
     <main class="main-content">
@@ -25,46 +25,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { useMsal } from "../composables/useMsal";
-import { useRouter } from "vue-router";
 
 const tasks = ref([]);
-const { acquireApiToken } = useMsal();
-const router = useRouter();
-
-// API base URL from .env
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const { acquireApiToken, logout } = useMsal();
 
 async function loadTasks() {
   const token = await acquireApiToken();
   if (!token) return;
 
-  const response = await fetch(`${API_BASE}/tasks`, {
+  const response = await fetch("http://localhost:5000/tasks", {
     headers: {
       Authorization: `Bearer ${token}`
     }
   });
 
-  const data = await response.json();
-  tasks.value = data.tasks || data;
+  tasks.value = await response.json();
 }
-
-async function logoutUser() {
-  const { msalInstance } = await import("../msalInstance");
-
-  const account =
-    msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
-
-  await msalInstance.logoutRedirect({
-    account,
-    postLogoutRedirectUri: "/logout"
-  });
-}
-
-onMounted(() => {
-  loadTasks();
-});
 </script>
 
 <style scoped src="../assets/home.css"></style>

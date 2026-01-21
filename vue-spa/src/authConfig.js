@@ -24,3 +24,7 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: ["openid", "profile", "email"]
 };
+
+export const apiRequest = {
+  scopes: [import.meta.env.VITE_API_SCOPE]
+};
