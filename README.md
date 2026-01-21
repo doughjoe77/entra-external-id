@@ -7,6 +7,7 @@ To run all the examples on your workstation, run the PowerShell command ```.\sta
 - [NodeJS API using JWTs for Authentication Swagger Page](http://localhost:4000/docs/)
 - [Vue SPA](http://localhost:5173/)
 - [Static HTML Page](http://localhost:3001/)
+It's currently using my Entra External ID lab tenant; others can sign up and login if they wish. If you want to experiment with your own tenant, you'll need to modify the .env files in the root of each application type folder.
 
 # Exploring Specific Examples
 

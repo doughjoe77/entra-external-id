@@ -55,6 +55,36 @@
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+    // ------------------------------
+    // Rolling inactivity logout
+    // ------------------------------
+    let inactivityTimer = null;
+
+    function startInactivityTimer() {
+        // const account = msalInstance.getActiveAccount(); 
+        // if (!account) return; // Do not start timer if user is not authenticated
+        
+        const minutes = window.appConfig.logoutMinutes || 60;
+        const timeoutMs = minutes * 60 * 1000;
+
+        clearTimeout(inactivityTimer);
+
+        inactivityTimer = setTimeout(() => {
+        const account = msalInstance.getActiveAccount();
+        msalInstance.logoutRedirect({
+            account,
+            postLogoutRedirectUri: window.location.origin + "/logout.html"
+        });
+        }, timeoutMs);
+    }
+
+    function resetInactivityTimer() {
+        startInactivityTimer();
+    }
+
+    // ------------------------------
+    // Authentication flow
+    // ------------------------------
     async function handleRedirect() {
       const result = await msalInstance.handleRedirectPromise();
 
@@ -105,6 +135,13 @@
         postLogoutRedirectUri: window.location.origin + "/logout.html"
       });
     };
+
+    // ------------------------------
+    // Activity listeners
+    // ------------------------------
+    ["mousemove", "mousedown", "keydown", "scroll", "touchstart"].forEach(evt => {
+        window.addEventListener(evt, resetInactivityTimer);
+    });
 
     handleRedirect();
   </script>
