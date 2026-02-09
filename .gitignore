@@ -13,3 +13,42 @@ bower_components
 psd
 thumb
 sketch
+
+### DotnetCore ###
+# .NET Core build folders
+bin/
+obj/
+out/
+artifacts/
+dotnet-graphql/obj
+
+## .NET user-specific files
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+## Visual Studio cache/options
+.vs/
+*.vc.db
+*.vc.opendb
+
+## ASP.NET Core
+wwwroot/*.map
+wwwroot/*.tmp
+wwwroot/dist/
+**/obj/
+**/bin/
+wwwroot/node_modules/
+
+## IDEs
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Temporary files
+*.tmp
+*.temp

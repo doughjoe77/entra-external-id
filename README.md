@@ -10,7 +10,7 @@ To run all the examples on your workstation, run the PowerShell command ```.\sta
 
 This lab is currently using my Entra External ID lab tenant; others can sign up and login if they wish. If you want to experiment with your own tenant, you'll need to modify the .env files in the root of each application type folder.
 
-# Exploring Specific Examples
+# Exploring Specific Examples (Web UIs)
 
 ## React SPA
 Running locally at http://localhost:3000 is a React Single Page Application (SPA) that, when you hit it, forces authentication against Entra External ID. To run the code, you need to be in the ```react-spa``` directory and to run the command ```npm start```. The SPA will also automatically log you out after 60 minutes of inactivity.
@@ -21,5 +21,28 @@ Running locally at http://localhost:5173/ is a Vue SPA that can obtain a JWT and
 ## Static HTML Page using MSAL to Authenticate
 For this example, to work, you must be running from Docker (```./start.ps1```) as it requires a web server to work. You can access the site at http://localhost:3001/ and mimics functionality of the other apps (i.e., automatic login, logout to logout page, rolling auto logout, etc.).
 
+# Exploring Specific Examples (APIs)
+
 ## NodeJS REST API
 A sample REST API created to return random daily tasks has been included with JWT Authentication. To try the API out go to http://localhost:4000/docs/, obtain a JWT Access Token from the SPA hosted at http://localhost:3000, "Login" with the JWT Access token in the Swagger UI, then execute the ```/tasks``` endpoint.
+
+## .NET GraphQL API (using Hot Chocolate)
+A sample [Hot Chocolate](https://chillicream.com/docs/hotchocolate/) .NET GraphQL API with JWT Authentication. I had a real hard time getting Hot Chocolate v15 to work with JWT Authentication, so instead this version is running v14 instead of v15. Additionally, I've used the Apollo GraphiQL interface instead of the standard Hot Chocolate UI, this was to tenable automatic authentication against Entra.
+- URL when running from Visual Studio: https://localhost:7091/graphiql/index.html
+- URL when running from Docker (TBD)
+``` gql
+# sample test GraphQL Query
+query{
+  book{
+    title
+    author{
+      name
+    }
+  }
+  health{
+    status
+    serverTimeUtc
+  }
+}
+```
+

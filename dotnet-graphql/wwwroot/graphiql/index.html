@@ -1,0 +1,131 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>GraphiQL + MSAL Auto Login</title>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css" />
+
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #graphiql {
+            height: 100vh;
+        }
+    </style>
+
+    <!-- Load your config -->
+    <script src="./config.js"></script>
+</head>
+
+<body>
+    <div id="graphiql">Loading…</div>
+
+    <!-- React -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- GraphiQL -->
+    <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+
+    <!-- MSAL -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+
+    <script>
+        // -----------------------------
+        // Build MSAL config from config.js
+        // -----------------------------
+        const msalConfig = {
+            auth: {
+                clientId: window.appConfig.clientId,
+                authority: window.appConfig.authority,
+                redirectUri: window.appConfig.redirectUri
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        const tokenRequest = {
+            scopes: [window.appConfig.apiScope]
+        };
+
+        let accessToken = null;
+
+        // -----------------------------
+        // Handle redirect callback
+        // -----------------------------
+        msalInstance.handleRedirectPromise().then(async (result) => {
+
+            if (result && result.accessToken) {
+                accessToken = result.accessToken;
+                startGraphiQL();
+                return;
+            }
+
+            const accounts = msalInstance.getAllAccounts();
+
+            if (accounts.length === 0) {
+                msalInstance.loginRedirect(tokenRequest);
+                return;
+            }
+
+            try {
+                const silent = await msalInstance.acquireTokenSilent({
+                    ...tokenRequest,
+                    account: accounts[0]
+                });
+
+                accessToken = silent.accessToken;
+                startGraphiQL();
+            }
+            catch (err) {
+                msalInstance.loginRedirect(tokenRequest);
+            }
+        });
+
+        // -----------------------------
+        // GraphQL fetcher
+        // -----------------------------
+        function startGraphiQL() {
+
+            // GraphiQL will pass headers from the UI into this fetcher
+            const graphQLFetcher = async (graphQLParams, fetcherOpts) => {
+                const headers = {
+                    "Content-Type": "application/json",
+                    ...fetcherOpts?.headers
+                };
+
+                const response = await fetch("/graphql", {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify(graphQLParams)
+                });
+
+                return response.json();
+            };
+
+            // Pre-populate the header editor with the Authorization header
+            const defaultHeaders = {
+                "Authorization": "Bearer " + accessToken
+            };
+
+            ReactDOM.render(
+                React.createElement(GraphiQL, {
+                    fetcher: graphQLFetcher,
+                    headerEditorEnabled: true,
+                    defaultHeaders: JSON.stringify(defaultHeaders, null, 2)
+                }),
+                document.getElementById("graphiql")
+            );
+        }
+    </script>
+</body>
+</html>
