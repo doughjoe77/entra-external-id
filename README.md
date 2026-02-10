@@ -4,9 +4,10 @@ This project is meant to test various features and integrations with Entra and E
 # Run all Examples
 To run all the examples on your workstation, run the PowerShell command ```.\start.ps1```. To clear everything out and bring down the running containers run the command ```.\scorched-earth.ps1```.
 - [React SPA showcasing logging in plus JWT claims](http://localhost:3000)
-- [NodeJS API using JWTs for Authentication Swagger Page](http://localhost:4000/docs/)
 - [Vue SPA](http://localhost:5173/)
 - [Static HTML Page](http://localhost:3001/)
+- [NodeJS API using JWTs for Authentication Swagger Page](http://localhost:4000/docs/)
+- [Hot Chocolate GraphQL API Graphiql UI](http://localhost:8085/graphiql/index.html)
 
 This lab is currently using my Entra External ID lab tenant; others can sign up and login if they wish. If you want to experiment with your own tenant, you'll need to modify the .env files in the root of each application type folder.
 

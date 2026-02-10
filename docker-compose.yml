@@ -43,3 +43,26 @@ services:
       JWK_URI: https://9cf28bb0-79d1-4ef0-bdc0-170f670708f4.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/discovery/v2.0/keys
       AUDIENCE: b31552fd-fb5a-4c61-9d87-0b54fa8905a0
       ISSUER: https://9cf28bb0-79d1-4ef0-bdc0-170f670708f4.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/v2.0
+
+  dotnet-graphql-api:
+    build:
+      context: ./dotnet-graphql
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8080"
+    environment:
+      # when set to true allows unauthenticated schema requests, for Local DEV only
+      GraphQL__EnableIntrospection: "true"
+      # ASP.NET standard parameters
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+      AllowedHosts: "*"
+      # IdentityProvider
+      IdentityProvider__Authority: "https://jglab2.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4/v2.0"
+      IdentityProvider__Audience: "b31552fd-fb5a-4c61-9d87-0b54fa8905a0"
+      # ConfigJs
+      ConfigJs__clientId: "404dae9d-aed8-4171-95ae-0e1ab3317a9a"
+      ConfigJs__authority: "https://jglab2.ciamlogin.com/9cf28bb0-79d1-4ef0-bdc0-170f670708f4"
+      ConfigJs__redirectUri: "http://localhost:8085/graphiql/index.html"
+      ConfigJs__apiScope: "api://b31552fd-fb5a-4c61-9d87-0b54fa8905a0/API.Read"
+      ConfigJs__logoutMinutes: "60"
