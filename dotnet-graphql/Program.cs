@@ -83,4 +83,9 @@ app.MapGet("/graphiql", async context =>
     context.Response.Redirect("/graphiql/index.html");
 });
 
+app.MapGet("/", () =>
+{
+    return Results.Redirect("/graphiql/index.html");
+});
+
 app.Run();

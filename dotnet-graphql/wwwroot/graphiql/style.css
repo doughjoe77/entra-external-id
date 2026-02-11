@@ -1,0 +1,66 @@
+/* Header */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  background-color: #000000;
+  color: white;
+  padding: 12px 20px;
+
+  height: 60px;
+  z-index: 1000;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 20px;
+}
+
+/* Push content below header */
+.main-content {
+  margin-top: 80px;
+  margin-bottom: 80px;
+}
+
+/* Footer */
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  background-color: #f2f2f2;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 1000;
+}
+
+/* Logout button */
+.logout-button {
+  background-color: #ffffff;
+  color: #0d6efd;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+  background-color: #e6e6e6;
+}

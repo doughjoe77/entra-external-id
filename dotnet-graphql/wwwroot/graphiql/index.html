@@ -11,18 +11,58 @@
             height: 100%;
             margin: 0;
             overflow: hidden;
+            font-family: sans-serif;
         }
 
+        /* Header styling */
+        .app-header {
+            height: 50px;
+            background: #1e1e1e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .logout-button {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+            .logout-button:hover {
+                background: #c0392b;
+            }
+
         #graphiql {
-            height: 100vh;
+            height: calc(100vh - 50px);
         }
     </style>
 
-    <!-- Load your config -->
+    <!-- Load your dynamic config -->
     <script src="./config.js"></script>
 </head>
 
 <body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-title">GraphQL Explorer</div>
+        <button id="logoutBtn" class="logout-button">Logout</button>
+    </header>
+
+    <!-- GraphiQL container -->
     <div id="graphiql">Loading…</div>
 
     <!-- React -->
@@ -36,9 +76,9 @@
     <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
     <script>
-        // -----------------------------
-        // Build MSAL config from config.js
-        // -----------------------------
+        // -------------------------------------------------------
+        // MSAL configuration from dynamic config.js
+        // -------------------------------------------------------
         const msalConfig = {
             auth: {
                 clientId: window.appConfig.clientId,
@@ -59,13 +99,57 @@
 
         let accessToken = null;
 
-        // -----------------------------
-        // Handle redirect callback
-        // -----------------------------
+        // -------------------------------------------------------
+        // Rolling inactivity logout
+        // -------------------------------------------------------
+        let logoutTimer = null;
+
+        function startAutoLogout() {
+            const minutes = parseInt(window.appConfig.logoutMinutes, 10);
+            const ms = minutes * 60 * 1000;
+
+            if (logoutTimer) {
+                clearTimeout(logoutTimer);
+            }
+
+            logoutTimer = setTimeout(() => {
+                console.log("Auto-logout triggered after inactivity.");
+
+                msalInstance.logoutRedirect({
+                    postLogoutRedirectUri: window.location.origin + "/logout.html"
+                });
+            }, ms);
+        }
+
+        function enableActivityReset() {
+            const resetEvents = ["click", "keydown", "mousemove", "scroll"];
+
+            resetEvents.forEach(evt => {
+                document.addEventListener(evt, () => startAutoLogout());
+            });
+        }
+
+        // -------------------------------------------------------
+        // Manual Logout Button
+        // -------------------------------------------------------
+        document.getElementById("logoutBtn").onclick = () => {
+            const account = msalInstance.getActiveAccount();
+
+            msalInstance.logoutRedirect({
+                account,
+                postLogoutRedirectUri: window.location.origin + "/graphiql/logout.html"
+            });
+        };
+
+        // -------------------------------------------------------
+        // Handle MSAL redirect login
+        // -------------------------------------------------------
         msalInstance.handleRedirectPromise().then(async (result) => {
 
             if (result && result.accessToken) {
                 accessToken = result.accessToken;
+                startAutoLogout();
+                enableActivityReset();
                 startGraphiQL();
                 return;
             }
@@ -84,6 +168,8 @@
                 });
 
                 accessToken = silent.accessToken;
+                startAutoLogout();
+                enableActivityReset();
                 startGraphiQL();
             }
             catch (err) {
@@ -91,12 +177,11 @@
             }
         });
 
-        // -----------------------------
-        // GraphQL fetcher
-        // -----------------------------
+        // -------------------------------------------------------
+        // GraphQL fetcher + GraphiQL initialization
+        // -------------------------------------------------------
         function startGraphiQL() {
 
-            // GraphiQL will pass headers from the UI into this fetcher
             const graphQLFetcher = async (graphQLParams, fetcherOpts) => {
                 const headers = {
                     "Content-Type": "application/json",
@@ -112,7 +197,6 @@
                 return response.json();
             };
 
-            // Pre-populate the header editor with the Authorization header
             const defaultHeaders = {
                 "Authorization": "Bearer " + accessToken
             };
