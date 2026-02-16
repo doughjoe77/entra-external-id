@@ -8,6 +8,10 @@ To run all the examples on your workstation, run the PowerShell command ```.\sta
 - [Static HTML Page](http://localhost:3001/)
 - [NodeJS API using JWTs for Authentication Swagger Page](http://localhost:4000/docs/)
 - [Hot Chocolate GraphQL API Graphiql UI](http://localhost:8085/graphiql/index.html)
+- [PG Admin for access to the Postgres DB](http://localhost:8889/) 
+  - PG admin user: `user@user.com`
+  - PG Admin password: `test123` 
+  - DB Password: `postgres`
 
 This lab is currently using my Entra External ID lab tenant; others can sign up and login if they wish. If you want to experiment with your own tenant, you'll need to modify the .env files in the root of each application type folder.
 

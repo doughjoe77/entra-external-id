@@ -1,4 +1,31 @@
 services:
+
+  # database (postgresql) and editor (pgadmin)
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+  pgadmin:
+    container_name: pgadmin
+    image:  dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@user.com
+      PGADMIN_DEFAULT_PASSWORD: test123
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+      POSTGRES_DB: postgres
+    ports:
+    - "8889:80"
+    volumes:
+      - ./pg-admin-setup/servers.json:/pgadmin4/servers.json
+
   react-spa:
     build:
       context: ./react-spa
