@@ -417,6 +417,6 @@ app.get('/graphiql', async (req, res) => {
 // Start Express
 // -------------------------------------------------------
 app.listen(port, () => {
-  console.log(`🚀 GraphQL API ready at http://localhost:${port}/graphql`);
-  console.log(`🧪 GraphiQL UI ready at http://localhost:${port}/graphiql`);
+  console.log(`GraphQL API ready at http://localhost:${port}/graphql`);
+  console.log(`GraphiQL UI ready at http://localhost:${port}/graphiql`);
 });

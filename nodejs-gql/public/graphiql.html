@@ -1,29 +1,64 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>GraphiQL + Query Builder</title>
+  <head>
+    <title>GraphiQL + Explorer</title>
 
-  <!-- Local CSS -->
-  <link rel="stylesheet" href="/public/graphiql.css" />
-  <link rel="stylesheet" href="/public/treeview.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css"
+    />
+    <link rel="stylesheet" href="/public/treeview.css" />
 
-  <!-- React -->
-  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
 
-  <!-- GraphiQL -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
-</head>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        font-family: system-ui, sans-serif;
+      }
+      #builder {
+        width: 320px;
+        border-right: 1px solid #ccc;
+        overflow: auto;
+        padding: 8px;
+      }
+      #args-panel {
+        width: 200px;
+        border-left: 1px solid #ccc;
+        padding: 8px;
+        overflow: auto;
+      }
+      #graphiql {
+        flex: 1;
+      }
+      #toolbar {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border-bottom: 1px solid #ccc;
+      }
+      /* button {
+        padding: 4px 8px;
+        font-size: 13px;
+        cursor: pointer;
+      } */
+    </style>
+  </head>
 
-<body style="margin:0; height:100vh; display:flex;">
+  <body>
+    <div id="builder"></div>
 
-  <div id="builder" style="width:350px; border-right:1px solid #ccc;"></div>
-  <div id="graphiql" style="flex:1;"></div>
+    <!-- <button id="reset-btn">Reset Query</button>
+    <button id="copy-btn">Copy Query</button> -->
 
-  <!-- Local JS -->
-  <script src="/public/query-builder.js"></script>
-  <script src="/public/graphiql.js"></script>
+    <div id="graphiql"></div>
 
-</body>
+    <script type="module" src="/public/query-builder.js"></script>
+    <script type="module" src="/public/schema-and-tree.js"></script>
+    <script type="module" src="/public/graphiql.js"></script>
+  </body>
 </html>

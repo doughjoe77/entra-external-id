@@ -1,55 +1,59 @@
-.qb-container {
-  padding: 12px;
-  font-family: system-ui, sans-serif;
+.schema-tree,
+.schema-tree ul,
+.schema-tree li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.qb-types {
-  margin-top: 10px;
+.field-node > ul {
+  padding-left: 16px;
+  margin-left: 8px;
+  border-left: 1px solid #ddd;
 }
 
-.qb-type {
-  padding: 6px;
+.field-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
   cursor: pointer;
   border-radius: 4px;
 }
 
-.qb-type:hover {
-  background: #eee;
-}
-
-.qb-type-selected {
-  background: #d0e6ff;
-  font-weight: bold;
-}
-
-.qb-fields {
-  margin-top: 15px;
-}
-
-.qb-field {
-  padding: 4px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.qb-field:hover {
-  background: #eee;
-}
-
-.qb-field-selected {
-  background: #c8ffd0;
-  font-weight: bold;
-}
-
-.qb-generate {
-  margin-top: 20px;
-  padding: 8px 12px;
-  cursor: pointer;
-  border: 1px solid #999;
-  border-radius: 4px;
+.field-header:hover {
   background: #f0f0f0;
 }
 
-.qb-generate:hover {
-  background: #e0e0e0;
+.field-header.selected {
+  background: #e0f3ff;
+  border-left: 3px solid #2196f3;
+}
+
+.arg-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+}
+
+.operator-name {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.operator-input,
+.arg-input {
+  flex: 1;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.operator-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.hidden {
+  display: none;
 }
