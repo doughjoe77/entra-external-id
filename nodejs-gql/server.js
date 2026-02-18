@@ -1,4 +1,4 @@
-// index.js
+// server.js
 import 'dotenv/config';
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
@@ -31,10 +31,20 @@ const typeDefs = `#graphql
   input StringComparisonExp {
     _eq: String
     _neq: String
+    _like: String
+    _nlike: String
     _ilike: String
     _nilike: String
+    _similar: String
+    _nsimilar: String
+    _regex: String
+    _nregex: String
+    _iregex: String
+    _niregex: String
     _in: [String!]
     _nin: [String!]
+    _is_null: Boolean
+    _is_not_null: Boolean
   }
 
   input IntComparisonExp {
@@ -46,6 +56,8 @@ const typeDefs = `#graphql
     _lte: Int
     _in: [Int!]
     _nin: [Int!]
+    _is_null: Boolean
+    _is_not_null: Boolean
   }
 
   input AuthorBoolExp {
@@ -151,6 +163,7 @@ function buildWhereClause(alias, where, params) {
   const addComp = (column, exp) => {
     if (!exp) return;
 
+    // Basic equality
     if (exp._eq !== undefined) {
       params.push(exp._eq);
       parts.push(`${alias}.${column} = $${params.length}`);
@@ -159,6 +172,8 @@ function buildWhereClause(alias, where, params) {
       params.push(exp._neq);
       parts.push(`${alias}.${column} <> $${params.length}`);
     }
+
+    // Numeric comparisons
     if (exp._gt !== undefined) {
       params.push(exp._gt);
       parts.push(`${alias}.${column} > $${params.length}`);
@@ -175,6 +190,8 @@ function buildWhereClause(alias, where, params) {
       params.push(exp._lte);
       parts.push(`${alias}.${column} <= $${params.length}`);
     }
+
+    // IN / NOT IN
     if (exp._in) {
       params.push(exp._in);
       parts.push(`${alias}.${column} = ANY($${params.length})`);
@@ -183,6 +200,18 @@ function buildWhereClause(alias, where, params) {
       params.push(exp._nin);
       parts.push(`NOT (${alias}.${column} = ANY($${params.length}))`);
     }
+
+    // LIKE operators
+    if (exp._like !== undefined) {
+      params.push(exp._like);
+      parts.push(`${alias}.${column} LIKE $${params.length}`);
+    }
+    if (exp._nlike !== undefined) {
+      params.push(exp._nlike);
+      parts.push(`NOT (${alias}.${column} LIKE $${params.length})`);
+    }
+
+    // ILIKE operators
     if (exp._ilike !== undefined) {
       params.push(exp._ilike);
       parts.push(`${alias}.${column} ILIKE $${params.length}`);
@@ -190,6 +219,42 @@ function buildWhereClause(alias, where, params) {
     if (exp._nilike !== undefined) {
       params.push(exp._nilike);
       parts.push(`NOT (${alias}.${column} ILIKE $${params.length})`);
+    }
+
+    // SIMILAR TO
+    if (exp._similar !== undefined) {
+      params.push(exp._similar);
+      parts.push(`${alias}.${column} SIMILAR TO $${params.length}`);
+    }
+    if (exp._nsimilar !== undefined) {
+      params.push(exp._nsimilar);
+      parts.push(`NOT (${alias}.${column} SIMILAR TO $${params.length})`);
+    }
+
+    // Regex operators
+    if (exp._regex !== undefined) {
+      params.push(exp._regex);
+      parts.push(`${alias}.${column} ~ $${params.length}`);
+    }
+    if (exp._nregex !== undefined) {
+      params.push(exp._nregex);
+      parts.push(`NOT (${alias}.${column} ~ $${params.length})`);
+    }
+    if (exp._iregex !== undefined) {
+      params.push(exp._iregex);
+      parts.push(`${alias}.${column} ~* $${params.length}`);
+    }
+    if (exp._niregex !== undefined) {
+      params.push(exp._niregex);
+      parts.push(`NOT (${alias}.${column} ~* $${params.length})`);
+    }
+
+    // NULL operators
+    if (exp._is_null === true) {
+      parts.push(`${alias}.${column} IS NULL`);
+    }
+    if (exp._is_not_null === true) {
+      parts.push(`${alias}.${column} IS NOT NULL`);
     }
   };
 
@@ -213,6 +278,7 @@ function buildWhereClause(alias, where, params) {
       if (notPart) sub.push(`NOT (${notPart})`);
     }
 
+    // Apply comparisons
     addComp('id', exp.id);
     addComp('name', exp.name);
     addComp('country', exp.country);
@@ -331,4 +397,4 @@ const { url } = await startStandaloneServer(server, {
   context: async () => ({}),
 });
 
-console.log(`🚀 Hasura-style GraphQL server ready at: ${url}`);
+console.log(`GraphQL API ready at: ${url}`);
