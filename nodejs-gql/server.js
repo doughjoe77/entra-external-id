@@ -1,9 +1,16 @@
 // server.js
 import 'dotenv/config';
 import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
+import { expressMiddleware } from '@as-integrations/express5';
+import cors from 'cors';
+import express from 'express';
 import pkg from 'pg';
+import path from 'path';
+import { readFile } from 'fs/promises';
+import url from 'url';
 
+const app = express();
+const port = process.env.PORT || 4000;
 const { Pool } = pkg;
 
 // -------------------------------------------------------
@@ -163,7 +170,6 @@ function buildWhereClause(alias, where, params) {
   const addComp = (column, exp) => {
     if (!exp) return;
 
-    // Basic equality
     if (exp._eq !== undefined) {
       params.push(exp._eq);
       parts.push(`${alias}.${column} = $${params.length}`);
@@ -173,7 +179,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`${alias}.${column} <> $${params.length}`);
     }
 
-    // Numeric comparisons
     if (exp._gt !== undefined) {
       params.push(exp._gt);
       parts.push(`${alias}.${column} > $${params.length}`);
@@ -191,7 +196,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`${alias}.${column} <= $${params.length}`);
     }
 
-    // IN / NOT IN
     if (exp._in) {
       params.push(exp._in);
       parts.push(`${alias}.${column} = ANY($${params.length})`);
@@ -201,7 +205,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`NOT (${alias}.${column} = ANY($${params.length}))`);
     }
 
-    // LIKE operators
     if (exp._like !== undefined) {
       params.push(exp._like);
       parts.push(`${alias}.${column} LIKE $${params.length}`);
@@ -211,7 +214,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`NOT (${alias}.${column} LIKE $${params.length})`);
     }
 
-    // ILIKE operators
     if (exp._ilike !== undefined) {
       params.push(exp._ilike);
       parts.push(`${alias}.${column} ILIKE $${params.length}`);
@@ -221,7 +223,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`NOT (${alias}.${column} ILIKE $${params.length})`);
     }
 
-    // SIMILAR TO
     if (exp._similar !== undefined) {
       params.push(exp._similar);
       parts.push(`${alias}.${column} SIMILAR TO $${params.length}`);
@@ -231,7 +232,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`NOT (${alias}.${column} SIMILAR TO $${params.length})`);
     }
 
-    // Regex operators
     if (exp._regex !== undefined) {
       params.push(exp._regex);
       parts.push(`${alias}.${column} ~ $${params.length}`);
@@ -249,7 +249,6 @@ function buildWhereClause(alias, where, params) {
       parts.push(`NOT (${alias}.${column} ~* $${params.length})`);
     }
 
-    // NULL operators
     if (exp._is_null === true) {
       parts.push(`${alias}.${column} IS NULL`);
     }
@@ -278,7 +277,6 @@ function buildWhereClause(alias, where, params) {
       if (notPart) sub.push(`NOT (${notPart})`);
     }
 
-    // Apply comparisons
     addComp('id', exp.id);
     addComp('name', exp.name);
     addComp('country', exp.country);
@@ -383,18 +381,42 @@ const resolvers = {
 };
 
 // -------------------------------------------------------
-// Apollo Server 5 standalone
+// Apollo Server 5 + Express 5
 // -------------------------------------------------------
 const server = new ApolloServer({
   typeDefs,
   resolvers,
 });
 
-const port = process.env.PORT || 4000;
+// Start Apollo
+await server.start();
 
-const { url } = await startStandaloneServer(server, {
-  listen: { port: Number(port) },
-  context: async () => ({}),
+// Mount Apollo middleware at /graphql
+app.use(
+  '/graphql',
+  cors(),
+  express.json(),
+  expressMiddleware(server)
+);
+
+// -------------------------------------------------------
+// Static GraphiQL UI
+// -------------------------------------------------------
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
+app.get('/graphiql', async (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'graphiql.html');
+  const html = await readFile(filePath, 'utf8');
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
 });
 
-console.log(`GraphQL API ready at: ${url}`);
+// -------------------------------------------------------
+// Start Express
+// -------------------------------------------------------
+app.listen(port, () => {
+  console.log(`🚀 GraphQL API ready at http://localhost:${port}/graphql`);
+  console.log(`🧪 GraphiQL UI ready at http://localhost:${port}/graphiql`);
+});

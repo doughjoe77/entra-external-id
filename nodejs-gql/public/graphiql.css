@@ -1,0 +1,25 @@
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+}
+
+#layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+#builder {
+  width: 350px;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+#graphiql {
+  flex: 1;
+  height: 100%;
+}

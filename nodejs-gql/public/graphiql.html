@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GraphiQL + Query Builder</title>
+
+  <!-- Local CSS -->
+  <link rel="stylesheet" href="/public/graphiql.css" />
+  <link rel="stylesheet" href="/public/treeview.css" />
+
+  <!-- React -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- GraphiQL -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+</head>
+
+<body style="margin:0; height:100vh; display:flex;">
+
+  <div id="builder" style="width:350px; border-right:1px solid #ccc;"></div>
+  <div id="graphiql" style="flex:1;"></div>
+
+  <!-- Local JS -->
+  <script src="/public/query-builder.js"></script>
+  <script src="/public/graphiql.js"></script>
+
+</body>
+</html>

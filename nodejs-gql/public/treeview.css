@@ -1,0 +1,55 @@
+.qb-container {
+  padding: 12px;
+  font-family: system-ui, sans-serif;
+}
+
+.qb-types {
+  margin-top: 10px;
+}
+
+.qb-type {
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.qb-type:hover {
+  background: #eee;
+}
+
+.qb-type-selected {
+  background: #d0e6ff;
+  font-weight: bold;
+}
+
+.qb-fields {
+  margin-top: 15px;
+}
+
+.qb-field {
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.qb-field:hover {
+  background: #eee;
+}
+
+.qb-field-selected {
+  background: #c8ffd0;
+  font-weight: bold;
+}
+
+.qb-generate {
+  margin-top: 20px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: 1px solid #999;
+  border-radius: 4px;
+  background: #f0f0f0;
+}
+
+.qb-generate:hover {
+  background: #e0e0e0;
+}
