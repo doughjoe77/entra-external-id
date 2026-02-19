@@ -6,7 +6,7 @@ export const QueryBuilder = {
     roots: {} // rootName -> { returnType, selection, args }
   },
 
-  // Toggle a root field (authors, books, etc.)
+  // Toggle a root field (authors, books, insert_book, etc.)
   toggleRootField(rootName, returnType) {
     const roots = this.state.roots;
     if (roots[rootName]) {
@@ -16,10 +16,11 @@ export const QueryBuilder = {
         returnType,
         selection: {}, // nested field selection
         args: {
-          where: {},      // nested bool exp
-          order_by: {},   // field -> "asc" | "desc"
-          limit: null,
-          offset: null
+          where: {},        // for queries
+          order_by: {},     // for queries
+          limit: null,      // for queries
+          offset: null,     // for queries
+          mutationArgs: {}  // for mutations (e.g. object: {...})
         }
       };
     }
@@ -47,7 +48,7 @@ export const QueryBuilder = {
     }
   },
 
-  // WHERE: set comparison value at path + operator
+  // WHERE: set comparison value at path + operator (queries)
   setWhere(rootName, fieldPath, operator, rawValue) {
     const root = this.state.roots[rootName];
     if (!root) return;
@@ -75,7 +76,33 @@ export const QueryBuilder = {
     }
   },
 
-  // ORDER BY: set direction for a field
+  // MUTATION INPUT: set value at argName + fieldPath
+  setMutationInput(rootName, argName, fieldPath, rawValue) {
+    const root = this.state.roots[rootName];
+    if (!root) return;
+
+    const mutationArgs = root.args.mutationArgs;
+    if (!mutationArgs[argName]) mutationArgs[argName] = {};
+
+    let node = mutationArgs[argName];
+
+    for (let i = 0; i < fieldPath.length - 1; i++) {
+      const segment = fieldPath[i];
+      node[segment] = node[segment] || {};
+      node = node[segment];
+    }
+
+    const leafKey = fieldPath[fieldPath.length - 1];
+
+    if (rawValue === "" || rawValue == null) {
+      delete node[leafKey];
+      return;
+    }
+
+    node[leafKey] = rawValue;
+  },
+
+  // ORDER BY: set direction for a field (queries)
   setOrderBy(rootName, fieldName, direction) {
     const root = this.state.roots[rootName];
     if (!root) return;
@@ -87,7 +114,7 @@ export const QueryBuilder = {
     }
   },
 
-  // LIMIT / OFFSET
+  // LIMIT / OFFSET (queries)
   setLimit(rootName, value) {
     const root = this.state.roots[rootName];
     if (!root) return;
@@ -129,6 +156,7 @@ export const QueryBuilder = {
   _buildArgsString(args) {
     const parts = [];
 
+    // Query-style args
     if (args.where && Object.keys(args.where).length > 0) {
       const whereStr = this._serializeWhere(args.where, 2);
       parts.push(`where: ${whereStr}`);
@@ -146,6 +174,15 @@ export const QueryBuilder = {
     }
     if (typeof args.offset === "number") {
       parts.push(`offset: ${args.offset}`);
+    }
+
+    // Mutation-style args (e.g. object: { ... })
+    if (args.mutationArgs && Object.keys(args.mutationArgs).length > 0) {
+      for (const [argName, value] of Object.entries(args.mutationArgs)) {
+        if (value == null || Object.keys(value).length === 0) continue;
+        const inputStr = this._serializeInputObject(value, 2);
+        parts.push(`${argName}: ${inputStr}`);
+      }
     }
 
     if (parts.length === 0) return "";
@@ -166,6 +203,37 @@ export const QueryBuilder = {
         entries.push(`${key}: [${vals}]`);
       } else if (typeof value === "object") {
         const inner = this._serializeWhere(value, indentLevel + 1);
+        entries.push(`${key}: ${inner}`);
+      } else {
+        const val = this._isNumeric(value) ? value : JSON.stringify(value);
+        entries.push(`${key}: ${val}`);
+      }
+    }
+
+    if (entries.length === 0) return "{}";
+    if (entries.length === 1 && !entries[0].includes("{")) {
+      return `{ ${entries[0]} }`;
+    }
+
+    return `{\n${indent}${entries.join(`,\n${indent}`)}\n${"  ".repeat(
+      indentLevel - 1
+    )}}`;
+  },
+
+  _serializeInputObject(node, indentLevel) {
+    const indent = "  ".repeat(indentLevel);
+    const entries = [];
+
+    for (const [key, value] of Object.entries(node)) {
+      if (value == null) continue;
+
+      if (Array.isArray(value)) {
+        const vals = value
+          .map(v => (this._isNumeric(v) ? v : JSON.stringify(v)))
+          .join(", ");
+        entries.push(`${key}: [${vals}]`);
+      } else if (typeof value === "object") {
+        const inner = this._serializeInputObject(value, indentLevel + 1);
         entries.push(`${key}: ${inner}`);
       } else {
         const val = this._isNumeric(value) ? value : JSON.stringify(value);

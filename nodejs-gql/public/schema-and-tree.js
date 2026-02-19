@@ -1,5 +1,8 @@
 // public/schema-and-tree.js
-// multi-root + inline filters + inputFields + conditional visibility + is_null checkboxes
+// Multi-root + inline filters + inputFields + conditional visibility
+// + is_null checkboxes + Query/Mutation/Subscription support
+// + full mutation input expansion using proper args (no where on mutations)
+
 import { QueryBuilder } from "./query-builder.js";
 
 /**
@@ -9,6 +12,9 @@ const INTROSPECTION_QUERY = `
   query IntrospectionQuery {
     __schema {
       queryType { name }
+      mutationType { name }
+      subscriptionType { name }
+
       types {
         name
         kind
@@ -53,7 +59,7 @@ const INTROSPECTION_QUERY = `
           }
         }
 
-        # For INPUT_OBJECT types (BoolExp, ComparisonExp, OrderBy)
+        # For INPUT_OBJECT types (BoolExp, ComparisonExp, OrderBy, Mutation Inputs)
         inputFields {
           name
           type {
@@ -92,7 +98,9 @@ export async function loadSchema() {
   for (const t of schema.types) typeMap[t.name] = t;
 
   const normalized = {
-    rootQuery: schema.queryType.name,
+    rootQuery: schema.queryType?.name,
+    rootMutation: schema.mutationType?.name || null,
+    rootSubscription: schema.subscriptionType?.name || null,
     types: typeMap
   };
 
@@ -101,7 +109,7 @@ export async function loadSchema() {
 }
 
 /**
- * Render the root Query tree.
+ * Render the entire tree: Query, Mutation, Subscription
  */
 export function renderTree(container, schema, onChangeQuery) {
   container.innerHTML = "";
@@ -109,14 +117,55 @@ export function renderTree(container, schema, onChangeQuery) {
   const rootUl = document.createElement("ul");
   rootUl.className = "schema-tree";
 
-  const queryType = schema.types[schema.rootQuery];
+  // Query
+  if (schema.rootQuery && schema.types[schema.rootQuery]) {
+    renderOperationRoot(
+      rootUl,
+      "query",
+      schema.rootQuery,
+      schema,
+      onChangeQuery
+    );
+  }
 
-  const queryLi = document.createElement("li");
-  queryLi.textContent = "Query";
+  // Mutation
+  if (schema.rootMutation && schema.types[schema.rootMutation]) {
+    renderOperationRoot(
+      rootUl,
+      "mutation",
+      schema.rootMutation,
+      schema,
+      onChangeQuery
+    );
+  }
+
+  // Subscription
+  if (schema.rootSubscription && schema.types[schema.rootSubscription]) {
+    renderOperationRoot(
+      rootUl,
+      "subscription",
+      schema.rootSubscription,
+      schema,
+      onChangeQuery
+    );
+  }
+
+  container.appendChild(rootUl);
+}
+
+/**
+ * Render Query / Mutation / Subscription root sections
+ */
+function renderOperationRoot(rootUl, opName, typeName, schema, onChangeQuery) {
+  const opType = schema.types[typeName];
+  if (!opType || !opType.fields) return;
+
+  const opLi = document.createElement("li");
+  opLi.textContent = opName.charAt(0).toUpperCase() + opName.slice(1);
 
   const fieldsUl = document.createElement("ul");
 
-  for (const field of queryType.fields) {
+  for (const field of opType.fields) {
     const li = document.createElement("li");
     li.className = "field-node";
 
@@ -126,8 +175,13 @@ export function renderTree(container, schema, onChangeQuery) {
     checkbox.addEventListener("change", () => {
       const returnType = unwrapType(field.type);
 
+      // Set operation type in QueryBuilder
+      QueryBuilder.state.operation = opName;
+
+      // Toggle root field
       QueryBuilder.toggleRootField(field.name, returnType.name);
 
+      // Rebuild this node
       li.innerHTML = "";
       li.appendChild(header);
 
@@ -182,13 +236,12 @@ export function renderTree(container, schema, onChangeQuery) {
     fieldsUl.appendChild(li);
   }
 
-  queryLi.appendChild(fieldsUl);
-  rootUl.appendChild(queryLi);
-  container.appendChild(rootUl);
+  opLi.appendChild(fieldsUl);
+  rootUl.appendChild(opLi);
 }
 
 /**
- * Render arguments node (where, order_by, limit, offset)
+ * Render arguments node (where, order_by, limit, offset, mutation inputs)
  */
 function renderArgumentNode(containerLi, rootName, arg, schema, onChangeQuery) {
   const argHeader = document.createElement("div");
@@ -197,7 +250,9 @@ function renderArgumentNode(containerLi, rootName, arg, schema, onChangeQuery) {
   containerLi.appendChild(argHeader);
 
   const argType = unwrapType(arg.type);
+  const typeDef = schema.types[argType.name];
 
+  // Query-style special args first
   if (arg.name === "where") {
     const ul = document.createElement("ul");
     const boolExpType = schema.types[argType.name];
@@ -209,7 +264,10 @@ function renderArgumentNode(containerLi, rootName, arg, schema, onChangeQuery) {
       ul.appendChild(li);
     }
     containerLi.appendChild(ul);
-  } else if (arg.name === "order_by") {
+    return;
+  }
+
+  if (arg.name === "order_by") {
     const ul = document.createElement("ul");
     const orderByType = schema.types[argType.name];
     const fields = orderByType?.inputFields || [];
@@ -220,7 +278,10 @@ function renderArgumentNode(containerLi, rootName, arg, schema, onChangeQuery) {
       ul.appendChild(li);
     }
     containerLi.appendChild(ul);
-  } else if (arg.name === "limit" || arg.name === "offset") {
+    return;
+  }
+
+  if (arg.name === "limit" || arg.name === "offset") {
     const wrapper = document.createElement("div");
     wrapper.className = "arg-row hidden";
 
@@ -250,7 +311,120 @@ function renderArgumentNode(containerLi, rootName, arg, schema, onChangeQuery) {
     });
 
     argHeader.prepend(toggleBox);
+    return;
   }
+
+  // Mutation-style INPUT_OBJECT args (e.g. object: BookInput!)
+  if (typeDef && typeDef.kind === "INPUT_OBJECT") {
+    const toggleBox = document.createElement("input");
+    toggleBox.type = "checkbox";
+    toggleBox.className = "field-checkbox";
+    argHeader.prepend(toggleBox);
+
+    const inputContainer = document.createElement("ul");
+    inputContainer.className = "nested-input hidden";
+
+    const fields = typeDef.inputFields || [];
+    for (const f of fields) {
+      const li = document.createElement("li");
+      li.className = "field-node";
+      renderMutationInputField(
+        li,
+        rootName,
+        arg.name,
+        [f.name],
+        f,
+        schema,
+        onChangeQuery
+      );
+      inputContainer.appendChild(li);
+    }
+
+    containerLi.appendChild(inputContainer);
+
+    toggleBox.addEventListener("change", () => {
+      inputContainer.classList.toggle("hidden", !toggleBox.checked);
+    });
+
+    return;
+  }
+}
+
+/**
+ * Render mutation input fields (recursive)
+ */
+function renderMutationInputField(
+  containerLi,
+  rootName,
+  argName,
+  fieldPath,
+  field,
+  schema,
+  onChangeQuery
+) {
+  const header = document.createElement("div");
+  header.className = "field-header";
+  header.innerHTML = `<span class="field-name">${field.name}</span>`;
+  containerLi.appendChild(header);
+
+  const toggleBox = document.createElement("input");
+  toggleBox.type = "checkbox";
+  toggleBox.className = "field-checkbox";
+  header.prepend(toggleBox);
+
+  const fieldType = unwrapType(field.type);
+  const typeDef = schema.types[fieldType.name];
+
+  // Nested input object
+  if (typeDef && typeDef.kind === "INPUT_OBJECT") {
+    const nestedContainer = document.createElement("ul");
+    nestedContainer.className = "nested-input hidden";
+
+    const fields = typeDef.inputFields || [];
+    for (const f of fields) {
+      const li = document.createElement("li");
+      li.className = "field-node";
+      renderMutationInputField(
+        li,
+        rootName,
+        argName,
+        [...fieldPath, f.name],
+        f,
+        schema,
+        onChangeQuery
+      );
+      nestedContainer.appendChild(li);
+    }
+
+    containerLi.appendChild(nestedContainer);
+
+    toggleBox.addEventListener("change", () => {
+      nestedContainer.classList.toggle("hidden", !toggleBox.checked);
+    });
+
+    return;
+  }
+
+  // Scalar input → textbox
+  const row = document.createElement("div");
+  row.className = "arg-row hidden";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "operator-input";
+
+  input.addEventListener("input", () => {
+    QueryBuilder.setMutationInput(rootName, argName, fieldPath, input.value);
+    const q = QueryBuilder.generateQuery(schema.types);
+    onChangeQuery(q);
+  });
+
+  row.appendChild(input);
+  containerLi.appendChild(row);
+
+  toggleBox.addEventListener("change", () => {
+    row.classList.toggle("hidden", !toggleBox.checked);
+  });
 }
 
 /**
