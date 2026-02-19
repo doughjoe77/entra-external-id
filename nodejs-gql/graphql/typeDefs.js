@@ -1,5 +1,8 @@
 // graphql/typeDefs.js
 export const typeDefs = `#graphql
+  # -------------------------------------------------------
+  # Comparison Expressions
+  # -------------------------------------------------------
   input StringComparisonExp {
     _eq: String
     _neq: String
@@ -32,6 +35,9 @@ export const typeDefs = `#graphql
     _is_not_null: Boolean
   }
 
+  # -------------------------------------------------------
+  # Boolean Expressions
+  # -------------------------------------------------------
   input AuthorBoolExp {
     _and: [AuthorBoolExp!]
     _or: [AuthorBoolExp!]
@@ -52,6 +58,9 @@ export const typeDefs = `#graphql
     author_id: IntComparisonExp
   }
 
+  # -------------------------------------------------------
+  # Ordering
+  # -------------------------------------------------------
   enum OrderBy {
     asc
     desc
@@ -68,8 +77,12 @@ export const typeDefs = `#graphql
     id: OrderBy
     title: OrderBy
     year: OrderBy
+    author_id: OrderBy
   }
 
+  # -------------------------------------------------------
+  # Insert Inputs
+  # -------------------------------------------------------
   input AuthorInsertInput {
     name: String!
     country: String
@@ -82,17 +95,44 @@ export const typeDefs = `#graphql
     author_id: Int!
   }
 
+  # -------------------------------------------------------
+  # Update Inputs
+  # -------------------------------------------------------
+  input AuthorUpdateInput {
+    name: String
+    country: String
+    birth_year: Int
+  }
+
+  input BookUpdateInput {
+    title: String
+    year: Int
+    author_id: Int
+  }
+
+  # -------------------------------------------------------
+  # Types
+  # -------------------------------------------------------
   type Author {
     id: Int!
     name: String!
     country: String
     birth_year: Int
+
     books(
       where: BookBoolExp
       limit: Int
       offset: Int
       order_by: BookOrderBy
     ): [Book!]!
+
+    books_aggregate(
+      where: BookBoolExp
+      group_by: [String!]
+      order_by: BookOrderBy
+      limit: Int
+      offset: Int
+    ): BooksAggregate!
   }
 
   type Book {
@@ -102,6 +142,78 @@ export const typeDefs = `#graphql
     author: Author!
   }
 
+  # -------------------------------------------------------
+  # Aggregate Types
+  # -------------------------------------------------------
+  type AuthorsSumFields {
+    birth_year: Int
+  }
+
+  type AuthorsAvgFields {
+    birth_year: Float
+  }
+
+  type AuthorsMinFields {
+    id: Int
+    birth_year: Int
+  }
+
+  type AuthorsMaxFields {
+    id: Int
+    birth_year: Int
+  }
+
+  type AuthorsAggregateFields {
+    count: Int
+    sum: AuthorsSumFields
+    avg: AuthorsAvgFields
+    min: AuthorsMinFields
+    max: AuthorsMaxFields
+  }
+
+  type AuthorsAggregate {
+    aggregate: AuthorsAggregateFields
+    nodes: [Author!]!
+  }
+
+  type BooksSumFields {
+    year: Int
+    author_id: Int
+  }
+
+  type BooksAvgFields {
+    year: Float
+    author_id: Float
+  }
+
+  type BooksMinFields {
+    id: Int
+    year: Int
+    author_id: Int
+  }
+
+  type BooksMaxFields {
+    id: Int
+    year: Int
+    author_id: Int
+  }
+
+  type BooksAggregateFields {
+    count: Int
+    sum: BooksSumFields
+    avg: BooksAvgFields
+    min: BooksMinFields
+    max: BooksMaxFields
+  }
+
+  type BooksAggregate {
+    aggregate: BooksAggregateFields
+    nodes: [Book!]!
+  }
+
+  # -------------------------------------------------------
+  # Root Query
+  # -------------------------------------------------------
   type Query {
     authors(
       where: AuthorBoolExp
@@ -116,10 +228,35 @@ export const typeDefs = `#graphql
       offset: Int
       order_by: BookOrderBy
     ): [Book!]!
+
+    authors_aggregate(
+      where: AuthorBoolExp
+      group_by: [String!]
+      order_by: AuthorOrderBy
+      limit: Int
+      offset: Int
+    ): AuthorsAggregate!
+
+    books_aggregate(
+      where: BookBoolExp
+      group_by: [String!]
+      order_by: BookOrderBy
+      limit: Int
+      offset: Int
+    ): BooksAggregate!
   }
 
+  # -------------------------------------------------------
+  # Root Mutations
+  # -------------------------------------------------------
   type Mutation {
     insert_author(object: AuthorInsertInput!): Author!
     insert_book(object: BookInsertInput!): Book!
+
+    update_author(where: AuthorBoolExp!, changes: AuthorUpdateInput!): [Author!]!
+    delete_author(where: AuthorBoolExp!): [Author!]!
+
+    update_book(where: BookBoolExp!, changes: BookUpdateInput!): [Book!]!
+    delete_book(where: BookBoolExp!): [Book!]!
   }
 `;

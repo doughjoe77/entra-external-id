@@ -29,8 +29,9 @@ app.use(
   expressMiddleware(server)
 );
 
-// Static UI
+// Static GraphiQL UI
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
 app.get('/graphiql', async (req, res) => {
@@ -40,6 +41,7 @@ app.get('/graphiql', async (req, res) => {
   res.send(html);
 });
 
+// Start Express
 app.listen(port, () => {
   console.log(`GraphQL API ready at http://localhost:${port}/graphql`);
   console.log(`GraphiQL UI ready at http://localhost:${port}/graphiql`);
