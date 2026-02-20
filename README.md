@@ -57,7 +57,6 @@ I went down a bit of rabbit hole on this, but this is an Apollo / Express NodeJS
 - will auto authenticate with Entra when you hit the GraphiQL page at http://localhost:4001/graphiql
 - added a tree view explorer to GraphiQL that uses the introspection data to build a tree that helps with creating the GraphQL queries and mutations, this was needed due to the complexities of the *where* clause sections that mimic Hasura and Hot Chocolate style GraphQL APIs
 ### Outstanding
-- only mutations right now need a JWT Access token, that will be added to all queries, mutations, and subscriptions in the future
 - no visible JWT in the "Headers" section of GraphiQL, right not that’s being injected into Graph calls in JavaScript
 - no subscriptions available yet....
 - no query depth controls

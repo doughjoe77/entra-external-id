@@ -27,7 +27,8 @@ export const resolvers = {
   Query: {
     whoami: (_, __, { user }) => user,
 
-    authors: async (_, args) => {
+    authors: async (_, args, { user }) => {
+      requireAuth(user);
       const params = [];
       const { clause, params: whereParams } = buildWhereClause('a', args.where, params);
       const orderBy = buildOrderBy('a', args.order_by);
@@ -39,7 +40,8 @@ export const resolvers = {
       return query(sql, whereParams);
     },
 
-    books: async (_, args) => {
+    books: async (_, args, { user }) => {
+      requireAuth(user);
       const params = [];
       const { clause, params: whereParams } = buildWhereClause('b', args.where, params);
       const orderBy = buildOrderBy('b', args.order_by);
@@ -51,7 +53,8 @@ export const resolvers = {
       return query(sql, whereParams);
     },
 
-    authors_aggregate: async (_, args) => {
+    authors_aggregate: async (_, args, { user }) => {
+      requireAuth(user);
       const { aggregateSql, nodesSql, params } = buildAggregateQuery({
         table: 'authors',
         alias: 'a',
@@ -73,7 +76,8 @@ export const resolvers = {
       };
     },
 
-    books_aggregate: async (_, args) => {
+    books_aggregate: async (_, args, { user }) => {
+      requireAuth(user);
       const { aggregateSql, nodesSql, params } = buildAggregateQuery({
         table: 'books',
         alias: 'b',
