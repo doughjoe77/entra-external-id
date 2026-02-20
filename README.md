@@ -6,6 +6,7 @@ To run all the examples on your workstation, run the PowerShell command ```.\sta
 - [React SPA showcasing logging in plus JWT claims](http://localhost:3000)
 - [Vue SPA](http://localhost:5173/)
 - [Static HTML Page](http://localhost:3001/)
+- [NodeJS Hasura / .NET Hot Chocolate like NodeJS GraphQL API](http://localhost:4001/graphiql)
 - [NodeJS API using JWTs for Authentication Swagger Page](http://localhost:4000/docs/)
 - [Hot Chocolate GraphQL API Graphiql UI](http://localhost:8085/graphiql/index.html)
 - [PG Admin for access to the Postgres DB](http://localhost:8889/) 
@@ -48,6 +49,35 @@ query{
     status
     serverTimeUtc
   }
+}
+```
+
+## NodeJS Hasura / .NET Hot Chocolate like NodeJS GraphQL API
+I went down a bit of rabbit hole on this, but this is an Apollo / Express NodeJS GraphQL API example that:
+- will auto authenticate with Entra when you hit the GraphiQL page at http://localhost:4001/graphiql
+- added a tree view explorer to GraphiQL that uses the introspection data to build a tree that helps with creating the GraphQL queries and mutations, this was needed due to the complexities of the *where* clause sections that mimic Hasura and Hot Chocolate style GraphQL APIs
+### Outstanding
+- only mutations right now need a JWT Access token, that will be added to all queries, mutations, and subscriptions in the future
+- no visible JWT in the "Headers" section of GraphiQL, right not that’s being injected into Graph calls in JavaScript
+- no subscriptions available yet....
+- no query depth controls
+- no query allow lists, which is something I might leave configurable in the example
+``` gql
+# sample query with filtering, and a limit of records returned applied
+query {
+  books(where: {
+    year: { _gte: 1920 }
+  }, order_by: { title: asc }, limit: 3) {
+    title
+    year
+    author {
+      name
+    }
+  }
+}
+# sample query that will pull the claims out of the JWT being passed and display them in the JSON results
+query {
+  whoami
 }
 ```
 
