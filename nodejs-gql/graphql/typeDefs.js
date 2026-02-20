@@ -1,5 +1,7 @@
 // graphql/typeDefs.js
 export const typeDefs = `#graphql
+  scalar JSON
+
   # -------------------------------------------------------
   # Comparison Expressions
   # -------------------------------------------------------
@@ -215,6 +217,8 @@ export const typeDefs = `#graphql
   # Root Query
   # -------------------------------------------------------
   type Query {
+    whoami: JSON
+
     authors(
       where: AuthorBoolExp
       limit: Int

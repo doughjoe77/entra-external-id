@@ -1,64 +1,191 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>GraphiQL + Explorer</title>
+<head>
+    <title>GraphQL Explorer</title>
 
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css"
-    />
+    <!-- GraphiQL CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css" />
+
+    <!-- Your custom styles -->
+    <link rel="stylesheet" href="/public/graphiql.css" />
     <link rel="stylesheet" href="/public/treeview.css" />
 
-    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+    <!-- Dynamic config -->
+    <script src="/graphiql/config.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        height: 100vh;
-        display: flex;
-        font-family: system-ui, sans-serif;
-      }
-      #builder {
-        width: 320px;
-        border-right: 1px solid #ccc;
-        overflow: auto;
-        padding: 8px;
-      }
-      #args-panel {
-        width: 200px;
-        border-left: 1px solid #ccc;
-        padding: 8px;
-        overflow: auto;
-      }
-      #graphiql {
-        flex: 1;
-      }
-      #toolbar {
-        display: flex;
-        gap: 8px;
-        padding: 8px;
-        border-bottom: 1px solid #ccc;
-      }
-      /* button {
-        padding: 4px 8px;
-        font-size: 13px;
-        cursor: pointer;
-      } */
+        .app-header {
+            height: 50px;
+            background: #1e1e1e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .logout-button {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-button:hover {
+            background: #c0392b;
+        }
     </style>
-  </head>
+</head>
 
-  <body>
-    <div id="builder"></div>
+<body>
 
-    <!-- <button id="reset-btn">Reset Query</button>
-    <button id="copy-btn">Copy Query</button> -->
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-title">GraphQL Explorer</div>
+        <button id="logoutBtn" class="logout-button">Logout</button>
+    </header>
 
-    <div id="graphiql"></div>
+    <!-- Layout: Tree left, GraphiQL right -->
+    <div id="layout">
+        <div id="builder"></div>
 
-    <script type="module" src="/public/query-builder.js"></script>
-    <script type="module" src="/public/schema-and-tree.js"></script>
+        <div id="graphiql"></div>
+    </div>
+
+    <!-- React -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- GraphiQL -->
+    <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+
+    <!-- MSAL -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+
+    <!-- Your tree + builder scripts -->
     <script type="module" src="/public/graphiql.js"></script>
-  </body>
+
+    <script>
+        // -------------------------------------------------------
+        // MSAL configuration
+        // -------------------------------------------------------
+        const msalConfig = {
+            auth: {
+                clientId: window.appConfig.clientId,
+                authority: window.appConfig.authority,
+                redirectUri: window.appConfig.redirectUri
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        const tokenRequest = {
+            scopes: [window.appConfig.apiScope]
+        };
+
+        let accessToken = null;
+
+        // -------------------------------------------------------
+        // Rolling inactivity logout
+        // -------------------------------------------------------
+        let logoutTimer = null;
+
+        function startAutoLogout() {
+            const minutes = parseInt(window.appConfig.logoutMinutes, 10);
+            const ms = minutes * 60 * 1000;
+
+            if (logoutTimer) clearTimeout(logoutTimer);
+
+            logoutTimer = setTimeout(() => {
+                msalInstance.logoutRedirect({
+                    postLogoutRedirectUri: window.location.origin + "/public/logout.html"
+                });
+            }, ms);
+        }
+
+        function enableActivityReset() {
+            ["click", "keydown", "mousemove", "scroll"].forEach(evt => {
+                document.addEventListener(evt, startAutoLogout);
+            });
+        }
+
+        // -------------------------------------------------------
+        // Logout button
+        // -------------------------------------------------------
+        document.getElementById("logoutBtn").onclick = () => {
+            const account = msalInstance.getActiveAccount();
+            msalInstance.logoutRedirect({
+                account,
+                postLogoutRedirectUri: window.location.origin + "/public/logout.html"
+            });
+        };
+
+        // -------------------------------------------------------
+        // Handle MSAL redirect login
+        // -------------------------------------------------------
+        msalInstance.handleRedirectPromise().then(async (result) => {
+
+            if (result && result.accessToken) {
+                accessToken = result.accessToken;
+                startAutoLogout();
+                enableActivityReset();
+                startGraphiQLWithAuth();
+                return;
+            }
+
+            const accounts = msalInstance.getAllAccounts();
+
+            if (accounts.length === 0) {
+                msalInstance.loginRedirect(tokenRequest);
+                return;
+            }
+
+            try {
+                const silent = await msalInstance.acquireTokenSilent({
+                    ...tokenRequest,
+                    account: accounts[0]
+                });
+
+                accessToken = silent.accessToken;
+                startAutoLogout();
+                enableActivityReset();
+                startGraphiQLWithAuth();
+            }
+            catch (err) {
+                msalInstance.loginRedirect(tokenRequest);
+            }
+        });
+
+        // -------------------------------------------------------
+        // Inject Authorization header into your existing fetcher
+        // -------------------------------------------------------
+        function startGraphiQLWithAuth() {
+            // Patch global fetch to inject Authorization header
+            const originalFetch = window.fetch;
+
+            window.fetch = function(url, options = {}) {
+                options.headers = options.headers || {};
+                options.headers["Authorization"] = "Bearer " + accessToken;
+                return originalFetch(url, options);
+            };
+
+            // Now load your tree + GraphiQL UI
+            import("/public/graphiql.js");
+        }
+    </script>
+</body>
 </html>

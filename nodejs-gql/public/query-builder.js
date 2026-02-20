@@ -147,7 +147,9 @@ export const QueryBuilder = {
         types,
         2
       );
-      return `  ${rootName}${argsStr} {\n${selectionStr}\n  }`;
+      return selectionStr.trim().length === 0
+        ? `  ${rootName}${argsStr}`
+        : `  ${rootName}${argsStr} {\n${selectionStr}\n  }`;
     });
 
     return `${op} {\n${rootBlocks.join("\n\n")}\n}`;
@@ -251,6 +253,7 @@ export const QueryBuilder = {
     )}}`;
   },
 
+  // ⭐ FIXED: scalar-safe selection builder
   _buildSelectionString(selectionNode, typeDef, types, indentLevel) {
     const indent = "  ".repeat(indentLevel);
     const lines = [];
@@ -261,20 +264,25 @@ export const QueryBuilder = {
       if (!selectionNode[field.name]) continue;
 
       const fieldType = this._unwrapType(field.type);
-      if (fieldType.kind === "OBJECT") {
-        const nestedType = types[fieldType.name];
-        const nestedSelection = this._buildSelectionString(
-          selectionNode[field.name],
-          nestedType,
-          types,
-          indentLevel + 1
-        );
-        lines.push(
-          `${indent}${field.name} {\n${nestedSelection}\n${indent}}`
-        );
-      } else {
+
+      // ⭐ FIX: If scalar/enum/JSON → no nested block
+      if (fieldType.kind !== "OBJECT") {
         lines.push(`${indent}${field.name}`);
+        continue;
       }
+
+      // Object → recurse
+      const nestedType = types[fieldType.name];
+      const nestedSelection = this._buildSelectionString(
+        selectionNode[field.name],
+        nestedType,
+        types,
+        indentLevel + 1
+      );
+
+      lines.push(
+        `${indent}${field.name} {\n${nestedSelection}\n${indent}}`
+      );
     }
 
     return lines.join("\n");

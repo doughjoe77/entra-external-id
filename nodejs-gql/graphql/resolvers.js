@@ -15,19 +15,18 @@ import {
   buildDeleteSql
 } from './sqlBuilder.js';
 
-// Allowed columns for group_by
+import { requireAuth } from '../requireAuth.js';
+
 const AUTHOR_COLUMNS = ['id', 'name', 'country', 'birth_year'];
 const BOOK_COLUMNS = ['id', 'title', 'year', 'author_id'];
 
-// Numeric columns for aggregates
 const AUTHOR_NUMERIC = ['birth_year'];
 const BOOK_NUMERIC = ['year', 'author_id'];
 
 export const resolvers = {
-  // -------------------------------------------------------
-  // ROOT QUERY RESOLVERS
-  // -------------------------------------------------------
   Query: {
+    whoami: (_, __, { user }) => user,
+
     authors: async (_, args) => {
       const params = [];
       const { clause, params: whereParams } = buildWhereClause('a', args.where, params);
@@ -52,9 +51,6 @@ export const resolvers = {
       return query(sql, whereParams);
     },
 
-    // -------------------------------------------------------
-    // ROOT-LEVEL AUTHORS AGGREGATE
-    // -------------------------------------------------------
     authors_aggregate: async (_, args) => {
       const { aggregateSql, nodesSql, params } = buildAggregateQuery({
         table: 'authors',
@@ -77,9 +73,6 @@ export const resolvers = {
       };
     },
 
-    // -------------------------------------------------------
-    // ROOT-LEVEL BOOKS AGGREGATE
-    // -------------------------------------------------------
     books_aggregate: async (_, args) => {
       const { aggregateSql, nodesSql, params } = buildAggregateQuery({
         table: 'books',
@@ -103,11 +96,10 @@ export const resolvers = {
     }
   },
 
-  // -------------------------------------------------------
-  // MUTATIONS (WHERE-BASED, MODULAR, OFFSET-SAFE)
-  // -------------------------------------------------------
   Mutation: {
-    insert_author: async (_, { object }) => {
+    insert_author: async (_, { object }, { user }) => {
+      requireAuth(user);
+
       const sql = `
         INSERT INTO authors (name, country, birth_year)
         VALUES ($1, $2, $3)
@@ -117,7 +109,9 @@ export const resolvers = {
       return rows[0];
     },
 
-    insert_book: async (_, { object }) => {
+    insert_book: async (_, { object }, { user }) => {
+      requireAuth(user);
+
       const sql = `
         INSERT INTO books (title, year, author_id)
         VALUES ($1, $2, $3)
@@ -127,20 +121,13 @@ export const resolvers = {
       return rows[0];
     },
 
-    // -------------------------------------------------------
-    // UPDATE AUTHOR
-    // -------------------------------------------------------
-    update_author: async (_, { where, changes }) => {
+    update_author: async (_, { where, changes }, { user }) => {
+      requireAuth(user);
+
       const params = [];
-
-      // WHERE clause
       const { clause, params: whereParams } = buildWhereClause('a', where, params);
-      if (!clause) throw new Error("update_author requires a WHERE clause");
 
-      // SET clause
       const { setSql, setParams } = buildSetClause(changes);
-
-      // Offset WHERE placeholders
       const offsetWhere = offsetWhereClause(clause, setParams.length);
 
       const sql = buildUpdateSql({
@@ -153,13 +140,11 @@ export const resolvers = {
       return query(sql, [...setParams, ...whereParams]);
     },
 
-    // -------------------------------------------------------
-    // DELETE AUTHOR
-    // -------------------------------------------------------
-    delete_author: async (_, { where }) => {
+    delete_author: async (_, { where }, { user }) => {
+      requireAuth(user);
+
       const params = [];
       const { clause, params: whereParams } = buildWhereClause('a', where, params);
-      if (!clause) throw new Error("delete_author requires a WHERE clause");
 
       const sql = buildDeleteSql({
         table: 'authors',
@@ -170,14 +155,11 @@ export const resolvers = {
       return query(sql, whereParams);
     },
 
-    // -------------------------------------------------------
-    // UPDATE BOOK
-    // -------------------------------------------------------
-    update_book: async (_, { where, changes }) => {
-      const params = [];
+    update_book: async (_, { where, changes }, { user }) => {
+      requireAuth(user);
 
+      const params = [];
       const { clause, params: whereParams } = buildWhereClause('b', where, params);
-      if (!clause) throw new Error("update_book requires a WHERE clause");
 
       const { setSql, setParams } = buildSetClause(changes);
       const offsetWhere = offsetWhereClause(clause, setParams.length);
@@ -192,13 +174,11 @@ export const resolvers = {
       return query(sql, [...setParams, ...whereParams]);
     },
 
-    // -------------------------------------------------------
-    // DELETE BOOK
-    // -------------------------------------------------------
-    delete_book: async (_, { where }) => {
+    delete_book: async (_, { where }, { user }) => {
+      requireAuth(user);
+
       const params = [];
       const { clause, params: whereParams } = buildWhereClause('b', where, params);
-      if (!clause) throw new Error("delete_book requires a WHERE clause");
 
       const sql = buildDeleteSql({
         table: 'books',
@@ -210,9 +190,6 @@ export const resolvers = {
     }
   },
 
-  // -------------------------------------------------------
-  // FIELD-LEVEL RESOLVERS
-  // -------------------------------------------------------
   Author: {
     books: async (author, args) => {
       const params = [];
@@ -227,9 +204,6 @@ export const resolvers = {
       return query(sql, whereParams);
     },
 
-    // -------------------------------------------------------
-    // FIELD-LEVEL BOOKS AGGREGATE
-    // -------------------------------------------------------
     books_aggregate: async (author, args) => {
       const { aggregateSql, nodesSql, params } = buildAggregateQuery({
         table: 'books',

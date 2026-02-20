@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logged Out</title>
+
+  <!-- Your shared styles -->
+  <link rel="stylesheet" href="/public/style.css" />
+
+  <!-- Dynamic config -->
+  <script src="/graphiql/config.js"></script>
+
+  <!-- MSAL -->
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+</head>
+
+<body>
+  <header class="app-header">
+    <h1 class="header-title">You are signed out</h1>
+  </header>
+
+  <main class="main-content">
+    <div class="container">
+      <br />
+      <p>You have been successfully logged out.</p>
+
+      <button id="loginBtn" class="login-button">Log back in</button>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    © 2026 JG Labs Inc — All Rights Reserved
+  </footer>
+
+  <script>
+    // MSAL instance using dynamic config.js
+    const msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId: window.appConfig.clientId,
+        authority: window.appConfig.authority,
+        redirectUri: window.appConfig.redirectUri
+      }
+    });
+
+    // Log back in → redirect to GraphiQL
+    document.getElementById("loginBtn").onclick = () => {
+      window.location.href = window.location.origin + "/graphiql";
+    };
+  </script>
+</body>
+</html>
