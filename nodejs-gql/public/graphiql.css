@@ -23,3 +23,10 @@ body {
   flex: 1;
   height: 100%;
 }
+
+/* Override logout page header style */
+.app-header {
+  justify-content: space-between !important;
+  padding-left: 20px;
+  padding-right: 20px;
+}

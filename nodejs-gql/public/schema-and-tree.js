@@ -1,12 +1,38 @@
 // public/schema-and-tree.js
 // Multi-root + inline filters + inputFields + conditional visibility
 // + is_null checkboxes + Query/Mutation/Subscription support
-// + full mutation input expansion using proper args (no where on mutations)
+// + full mutation input expansion
+// + PER-SECTION SORTING ADDED
 
 import { QueryBuilder } from "./query-builder.js";
 
+// ---------------------------------------------
+// NEW: Sort mode per operation
+// ---------------------------------------------
+let ROOT_SORT_MODES = {
+  query: "asc",
+  mutation: "asc",
+  subscription: "asc"
+};
+
+// Toggle sort mode for a specific operation
+export function toggleSortMode(opName) {
+  ROOT_SORT_MODES[opName] =
+    ROOT_SORT_MODES[opName] === "asc" ? "desc" : "asc";
+}
+
+// Sort helper for a specific operation
+function sortFieldsFor(opName, fields) {
+  const mode = ROOT_SORT_MODES[opName];
+  return [...fields].sort((a, b) => {
+    return mode === "asc"
+      ? a.name.localeCompare(b.name)
+      : b.name.localeCompare(a.name);
+  });
+}
+
 /**
- * Introspection with args + fields + inputFields + deep ofType for Hot Chocolate
+ * Introspection with args + fields + inputFields + deep ofType
  */
 const INTROSPECTION_QUERY = `
   query IntrospectionQuery {
@@ -19,7 +45,6 @@ const INTROSPECTION_QUERY = `
         name
         kind
 
-        # For OBJECT types
         fields(includeDeprecated: true) {
           name
           args {
@@ -59,7 +84,6 @@ const INTROSPECTION_QUERY = `
           }
         }
 
-        # For INPUT_OBJECT types (BoolExp, ComparisonExp, OrderBy, Mutation Inputs)
         inputFields {
           name
           type {
@@ -97,19 +121,16 @@ export async function loadSchema() {
   const typeMap = {};
   for (const t of schema.types) typeMap[t.name] = t;
 
-  const normalized = {
+  return {
     rootQuery: schema.queryType?.name,
     rootMutation: schema.mutationType?.name || null,
     rootSubscription: schema.subscriptionType?.name || null,
     types: typeMap
   };
-
-  window.__schema = normalized;
-  return normalized;
 }
 
 /**
- * Render the entire tree: Query, Mutation, Subscription
+ * Render the entire tree
  */
 export function renderTree(container, schema, onChangeQuery) {
   container.innerHTML = "";
@@ -117,37 +138,16 @@ export function renderTree(container, schema, onChangeQuery) {
   const rootUl = document.createElement("ul");
   rootUl.className = "schema-tree";
 
-  // Query
-  if (schema.rootQuery && schema.types[schema.rootQuery]) {
-    renderOperationRoot(
-      rootUl,
-      "query",
-      schema.rootQuery,
-      schema,
-      onChangeQuery
-    );
+  if (schema.rootQuery) {
+    renderOperationRoot(rootUl, "query", schema.rootQuery, schema, onChangeQuery);
   }
 
-  // Mutation
-  if (schema.rootMutation && schema.types[schema.rootMutation]) {
-    renderOperationRoot(
-      rootUl,
-      "mutation",
-      schema.rootMutation,
-      schema,
-      onChangeQuery
-    );
+  if (schema.rootMutation) {
+    renderOperationRoot(rootUl, "mutation", schema.rootMutation, schema, onChangeQuery);
   }
 
-  // Subscription
-  if (schema.rootSubscription && schema.types[schema.rootSubscription]) {
-    renderOperationRoot(
-      rootUl,
-      "subscription",
-      schema.rootSubscription,
-      schema,
-      onChangeQuery
-    );
+  if (schema.rootSubscription) {
+    renderOperationRoot(rootUl, "subscription", schema.rootSubscription, schema, onChangeQuery);
   }
 
   container.appendChild(rootUl);
@@ -161,33 +161,55 @@ function renderOperationRoot(rootUl, opName, typeName, schema, onChangeQuery) {
   if (!opType || !opType.fields) return;
 
   const opLi = document.createElement("li");
-  opLi.textContent = opName.charAt(0).toUpperCase() + opName.slice(1);
+
+  // ---------------------------------------------
+  // NEW: Header with sort arrow
+  // ---------------------------------------------
+  const header = document.createElement("div");
+  header.className = "field-header";
+
+  const arrow = ROOT_SORT_MODES[opName] === "asc" ? "▲" : "▼";
+
+  header.innerHTML = `
+    <span class="field-name">${opName.charAt(0).toUpperCase() + opName.slice(1)}</span>
+    <span class="sort-arrow" style="cursor:pointer; margin-left:auto;">${arrow}</span>
+  `;
+
+  const arrowEl = header.querySelector(".sort-arrow");
+
+  arrowEl.addEventListener("click", () => {
+    toggleSortMode(opName);
+    rootUl.innerHTML = "";
+    renderTree(rootUl.parentElement, schema, onChangeQuery);
+  });
+
+  opLi.appendChild(header);
 
   const fieldsUl = document.createElement("ul");
 
-  for (const field of opType.fields) {
+  // ---------------------------------------------
+  // NEW: Sort only this section
+  // ---------------------------------------------
+  const sortedFields = sortFieldsFor(opName, opType.fields);
+
+  for (const field of sortedFields) {
     const li = document.createElement("li");
     li.className = "field-node";
 
-    const header = createFieldHeader(field.name);
-    const checkbox = header.querySelector(".field-checkbox");
+    const fieldHeader = createFieldHeader(field.name);
+    const checkbox = fieldHeader.querySelector(".field-checkbox");
 
     checkbox.addEventListener("change", () => {
       const returnType = unwrapType(field.type);
 
-      // Set operation type in QueryBuilder
       QueryBuilder.state.operation = opName;
-
-      // Toggle root field
       QueryBuilder.toggleRootField(field.name, returnType.name);
 
-      // Rebuild this node
       li.innerHTML = "";
-      li.appendChild(header);
+      li.appendChild(fieldHeader);
 
       if (checkbox.checked) {
-        // arguments node
-        if (field.args && field.args.length > 0) {
+        if (field.args?.length) {
           const argsLi = document.createElement("li");
           argsLi.className = "field-node";
 
@@ -200,13 +222,7 @@ function renderOperationRoot(rootUl, opName, typeName, schema, onChangeQuery) {
           for (const arg of field.args) {
             const argLi = document.createElement("li");
             argLi.className = "field-node";
-            renderArgumentNode(
-              argLi,
-              field.name,
-              arg,
-              schema,
-              onChangeQuery
-            );
+            renderArgumentNode(argLi, field.name, arg, schema, onChangeQuery);
             argsUl.appendChild(argLi);
           }
           argsLi.appendChild(argsUl);
@@ -216,23 +232,16 @@ function renderOperationRoot(rootUl, opName, typeName, schema, onChangeQuery) {
           li.appendChild(rootArgsUl);
         }
 
-        // fields under this root
-        expandObjectFields(
-          li,
-          schema,
-          [field.name],
-          returnType.name,
-          onChangeQuery
-        );
+        expandObjectFields(li, schema, [field.name], returnType.name, onChangeQuery);
       }
 
       const q = QueryBuilder.generateQuery(schema.types);
       onChangeQuery(q);
 
-      header.classList.toggle("selected", checkbox.checked);
+      fieldHeader.classList.toggle("selected", checkbox.checked);
     });
 
-    li.appendChild(header);
+    li.appendChild(fieldHeader);
     fieldsUl.appendChild(li);
   }
 

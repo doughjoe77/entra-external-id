@@ -3,189 +3,148 @@
 <head>
     <title>GraphQL Explorer</title>
 
-    <!-- GraphiQL CSS -->
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.css" />
 
-    <!-- Your custom styles -->
     <link rel="stylesheet" href="/public/graphiql.css" />
     <link rel="stylesheet" href="/public/treeview.css" />
+    <link rel="stylesheet" href="/public/style.css" />
 
-    <!-- Dynamic config -->
     <script src="/graphiql/config.js"></script>
-
-    <style>
-        .app-header {
-            height: 50px;
-            background: #1e1e1e;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            box-sizing: border-box;
-        }
-
-        .header-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .logout-button {
-            background: #e74c3c;
-            border: none;
-            color: white;
-            padding: 8px 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .logout-button:hover {
-            background: #c0392b;
-        }
-    </style>
 </head>
 
 <body>
 
-    <!-- Header -->
-    <header class="app-header">
-        <div class="header-title">GraphQL Explorer</div>
-        <button id="logoutBtn" class="logout-button">Logout</button>
-    </header>
+<header class="app-header">
+    <div class="header-title">GraphQL Explorer</div>
+    <button id="logoutBtn" class="logout-button">Logout</button>
+</header>
 
-    <!-- Layout: Tree left, GraphiQL right -->
-    <div id="layout">
-        <div id="builder"></div>
+<div id="layout">
 
-        <div id="graphiql"></div>
-    </div>
+    <div id="builder"></div>
 
-    <!-- React -->
-    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <div id="graphiql"></div>
+</div>
 
-    <!-- GraphiQL -->
-    <script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.0/graphiql.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
-    <!-- MSAL -->
-    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script type="module" src="/public/graphiql.js"></script>
 
-    <!-- Your tree + builder scripts -->
-    <script type="module" src="/public/graphiql.js"></script>
-
-    <script>
-        // -------------------------------------------------------
-        // MSAL configuration
-        // -------------------------------------------------------
-        const msalConfig = {
-            auth: {
-                clientId: window.appConfig.clientId,
-                authority: window.appConfig.authority,
-                redirectUri: window.appConfig.redirectUri
-            },
-            cache: {
-                cacheLocation: "localStorage",
-                storeAuthStateInCookie: false
-            }
-        };
-
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-        const tokenRequest = {
-            scopes: [window.appConfig.apiScope]
-        };
-
-        let accessToken = null;
-
-        // -------------------------------------------------------
-        // Rolling inactivity logout
-        // -------------------------------------------------------
-        let logoutTimer = null;
-
-        function startAutoLogout() {
-            const minutes = parseInt(window.appConfig.logoutMinutes, 10);
-            const ms = minutes * 60 * 1000;
-
-            if (logoutTimer) clearTimeout(logoutTimer);
-
-            logoutTimer = setTimeout(() => {
-                msalInstance.logoutRedirect({
-                    postLogoutRedirectUri: window.location.origin + "/public/logout.html"
-                });
-            }, ms);
+<script>
+    // -------------------------------------------------------
+    // MSAL configuration
+    // -------------------------------------------------------
+    const msalConfig = {
+        auth: {
+            clientId: window.appConfig.clientId,
+            authority: window.appConfig.authority,
+            redirectUri: window.appConfig.redirectUri
+        },
+        cache: {
+            cacheLocation: "localStorage",
+            storeAuthStateInCookie: false
         }
+    };
 
-        function enableActivityReset() {
-            ["click", "keydown", "mousemove", "scroll"].forEach(evt => {
-                document.addEventListener(evt, startAutoLogout);
-            });
-        }
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        // -------------------------------------------------------
-        // Logout button
-        // -------------------------------------------------------
-        document.getElementById("logoutBtn").onclick = () => {
-            const account = msalInstance.getActiveAccount();
+    const tokenRequest = {
+        scopes: [window.appConfig.apiScope]
+    };
+
+    let accessToken = null;
+
+    // -------------------------------------------------------
+    // Rolling inactivity logout
+    // -------------------------------------------------------
+    let logoutTimer = null;
+
+    function startAutoLogout() {
+        const minutes = parseInt(window.appConfig.logoutMinutes, 10);
+        const ms = minutes * 60 * 1000;
+
+        if (logoutTimer) clearTimeout(logoutTimer);
+
+        logoutTimer = setTimeout(() => {
             msalInstance.logoutRedirect({
-                account,
                 postLogoutRedirectUri: window.location.origin + "/public/logout.html"
             });
+        }, ms);
+    }
+
+    function enableActivityReset() {
+        ["click", "keydown", "mousemove", "scroll"].forEach(evt => {
+            document.addEventListener(evt, startAutoLogout);
+        });
+    }
+
+    // -------------------------------------------------------
+    // Logout button
+    // -------------------------------------------------------
+    document.getElementById("logoutBtn").onclick = () => {
+        const account = msalInstance.getActiveAccount();
+        msalInstance.logoutRedirect({
+            account,
+            postLogoutRedirectUri: window.location.origin + "/public/logout.html"
+        });
+    };
+
+    // -------------------------------------------------------
+    // Handle MSAL redirect login
+    // -------------------------------------------------------
+    msalInstance.handleRedirectPromise().then(async (result) => {
+
+        if (result && result.accessToken) {
+            accessToken = result.accessToken;
+            startAutoLogout();
+            enableActivityReset();
+            startGraphiQLWithAuth();
+            return;
+        }
+
+        const accounts = msalInstance.getAllAccounts();
+
+        if (accounts.length === 0) {
+            msalInstance.loginRedirect(tokenRequest);
+            return;
+        }
+
+        try {
+            const silent = await msalInstance.acquireTokenSilent({
+                ...tokenRequest,
+                account: accounts[0]
+            });
+
+            accessToken = silent.accessToken;
+            startAutoLogout();
+            enableActivityReset();
+            startGraphiQLWithAuth();
+        }
+        catch (err) {
+            msalInstance.loginRedirect(tokenRequest);
+        }
+    });
+
+    // -------------------------------------------------------
+    // Inject Authorization header into your existing fetcher
+    // -------------------------------------------------------
+    function startGraphiQLWithAuth() {
+        // Patch global fetch to inject Authorization header
+        const originalFetch = window.fetch;
+
+        window.fetch = function(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers["Authorization"] = "Bearer " + accessToken;
+            return originalFetch(url, options);
         };
 
-        // -------------------------------------------------------
-        // Handle MSAL redirect login
-        // -------------------------------------------------------
-        msalInstance.handleRedirectPromise().then(async (result) => {
-
-            if (result && result.accessToken) {
-                accessToken = result.accessToken;
-                startAutoLogout();
-                enableActivityReset();
-                startGraphiQLWithAuth();
-                return;
-            }
-
-            const accounts = msalInstance.getAllAccounts();
-
-            if (accounts.length === 0) {
-                msalInstance.loginRedirect(tokenRequest);
-                return;
-            }
-
-            try {
-                const silent = await msalInstance.acquireTokenSilent({
-                    ...tokenRequest,
-                    account: accounts[0]
-                });
-
-                accessToken = silent.accessToken;
-                startAutoLogout();
-                enableActivityReset();
-                startGraphiQLWithAuth();
-            }
-            catch (err) {
-                msalInstance.loginRedirect(tokenRequest);
-            }
-        });
-
-        // -------------------------------------------------------
-        // Inject Authorization header into your existing fetcher
-        // -------------------------------------------------------
-        function startGraphiQLWithAuth() {
-            // Patch global fetch to inject Authorization header
-            const originalFetch = window.fetch;
-
-            window.fetch = function(url, options = {}) {
-                options.headers = options.headers || {};
-                options.headers["Authorization"] = "Bearer " + accessToken;
-                return originalFetch(url, options);
-            };
-
-            // Now load your tree + GraphiQL UI
-            import("/public/graphiql.js");
-        }
-    </script>
+        // Now load your tree + GraphiQL UI
+        import("/public/graphiql.js");
+    }
+</script>
 </body>
 </html>
