@@ -263,4 +263,18 @@ export const typeDefs = `#graphql
     update_book(where: BookBoolExp!, changes: BookUpdateInput!): [Book!]!
     delete_book(where: BookBoolExp!): [Book!]!
   }
+  # -------------------------------------------------------
+  # Subscription Types
+  # -------------------------------------------------------
+  type TimeTick {
+    now: String!
+  }
+
+  # -------------------------------------------------------
+  # Root Subscription
+  # -------------------------------------------------------
+  type Subscription {
+    time: TimeTick!
+  }
 `;
+

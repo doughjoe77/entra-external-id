@@ -14,7 +14,7 @@ import {
   buildUpdateSql,
   buildDeleteSql
 } from './sqlBuilder.js';
-
+import { pubsub } from './pubsub.js';
 import { requireAuth } from '../requireAuth.js';
 
 const AUTHOR_COLUMNS = ['id', 'name', 'country', 'birth_year'];
@@ -191,6 +191,34 @@ export const resolvers = {
       });
 
       return query(sql, whereParams);
+    }
+  },
+
+  Subscription: {
+    time: {
+      subscribe: (_, __, { user }) => {
+        console.log("[SUBSCRIBE] user =", user);
+        requireAuth(user);
+
+        const iterator = pubsub.asyncIterator('TIME_TICK');
+        console.log("[SUBSCRIBE] iterator created");
+        return iterator;
+      },
+
+      resolve: (payload) => {
+        console.log("[RESOLVE] raw payload =", payload);
+
+        // First call happens before any events are published
+        if (!payload) {
+          const fallback = { now: new Date().toISOString() };
+          console.log("[RESOLVE] using fallback payload =", fallback);
+          return fallback;
+        }
+
+        // Normal case
+        return payload.time;
+      }
+
     }
   },
 

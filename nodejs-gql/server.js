@@ -6,23 +6,48 @@ import path from 'path';
 import url from 'url';
 import { readFile } from 'fs/promises';
 
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/use/ws';
+
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express5';
+
+import { makeExecutableSchema } from '@graphql-tools/schema';
 
 import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
 import { jwtMiddleware } from './auth.js';
+import { pubsub } from './graphql/pubsub.js';
 
-const app = express();
-const port = process.env.PORT || 4001;
-
-// Apollo Server
-const server = new ApolloServer({
+// ------------------------------------------------------------
+// Build schema manually (Apollo Server 5 does NOT expose schema)
+// ------------------------------------------------------------
+const schema = makeExecutableSchema({
   typeDefs,
   resolvers
 });
 
+// ------------------------------------------------------------
+// Express + HTTP server
+// ------------------------------------------------------------
+const app = express();
+const port = process.env.PORT || 4001;
+
+const httpServer = http.createServer(app);
+
+// ------------------------------------------------------------
+// Apollo Server 5
+// ------------------------------------------------------------
+const server = new ApolloServer({
+  schema
+});
+
 await server.start();
+
+// ------------------------------------------------------------
+// HTTP GraphQL (Queries + Mutations)
+// ------------------------------------------------------------
 
 // JWT middleware FIRST
 app.use('/graphql', jwtMiddleware);
@@ -33,15 +58,67 @@ app.use(
   cors(),
   express.json(),
   expressMiddleware(server, {
-    context: async ({ req }) => {
-      return {
-        user: req.auth || null
-      };
-    }
+    context: async ({ req }) => ({
+      user: req.auth || null
+    })
   })
 );
 
-// Dynamic config.js for GraphiQL
+// ------------------------------------------------------------
+// WebSocket GraphQL (Subscriptions)
+// ------------------------------------------------------------
+const wsServer = new WebSocketServer({
+  server: httpServer,
+  path: '/graphql'
+});
+
+useServer(
+  {
+    schema, // ⭐ FIXED — Apollo 5 requires manually built schema
+
+    context: async (ctx) => {
+      console.log("--------------------------------------------------");
+      console.log("[WS] New WebSocket connection");
+      console.log("[WS] connectionParams =", ctx.connectionParams);
+
+      const token =
+        ctx.connectionParams?.Authorization ||
+        ctx.connectionParams?.authorization ||
+        null;
+
+      console.log("[WS] extracted token =", token);
+
+      const fakeReq = { headers: { authorization: token } };
+      const fakeRes = {};
+
+      await new Promise(resolve =>
+        jwtMiddleware(fakeReq, fakeRes, resolve)
+      );
+
+      console.log("[WS] authenticated user =", fakeReq.auth);
+
+      return { user: fakeReq.auth || null };
+    }
+  },
+  wsServer
+);
+
+// ------------------------------------------------------------
+// TIME TICK PUBLISHER (1 minute)
+// ------------------------------------------------------------
+setInterval(() => {
+  const tick = {
+    time: { now: new Date().toISOString() }
+  };
+
+  console.log("[PUBLISH] sending =", tick);
+
+  pubsub.publish('TIME_TICK', tick);
+}, 60_000);
+
+// ------------------------------------------------------------
+// GraphiQL config + static UI
+// ------------------------------------------------------------
 app.get('/graphiql/config.js', (req, res) => {
   const js = `
     window.appConfig = {
@@ -57,8 +134,6 @@ app.get('/graphiql/config.js', (req, res) => {
   res.send(js);
 });
 
-
-// Static GraphiQL UI
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
@@ -69,8 +144,10 @@ app.get('/graphiql', async (req, res) => {
   res.send(html);
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`GraphQL API ready at http://localhost:${port}/graphql`);
+// ------------------------------------------------------------
+// Start HTTP + WS server
+// ------------------------------------------------------------
+httpServer.listen(port, () => {
+  console.log(`HTTP+WS GraphQL ready at http://localhost:${port}/graphql`);
   console.log(`GraphiQL UI ready at http://localhost:${port}/graphiql`);
 });
