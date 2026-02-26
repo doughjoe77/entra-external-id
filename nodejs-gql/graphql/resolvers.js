@@ -14,14 +14,74 @@ import {
   buildUpdateSql,
   buildDeleteSql
 } from './sqlBuilder.js';
+
+//import PubSub from './pubsub.js';
 import { pubsub } from './pubsub.js';
+
 import { requireAuth } from '../requireAuth.js';
+
+//const pubsub = new PubSub();
 
 const AUTHOR_COLUMNS = ['id', 'name', 'country', 'birth_year'];
 const BOOK_COLUMNS = ['id', 'title', 'year', 'author_id'];
 
 const AUTHOR_NUMERIC = ['birth_year'];
 const BOOK_NUMERIC = ['year', 'author_id'];
+
+// Live query state
+const liveQueryState = new Map();
+
+// Poll interval from .env
+const POLL_MS = parseInt(process.env.LIVE_QUERY_POLL_MS || "30000", 10);
+
+// Create stable key for subscription args
+function makeKey(args) {
+  return JSON.stringify(args || {});
+}
+
+// Reuse your existing dynamic SQL builder for authors
+async function runDynamicAuthorQuery(args, user) {
+  requireAuth(user);
+
+  const params = [];
+  const { clause, params: whereParams } = buildWhereClause('a', args.where, params);
+  const orderBy = buildOrderBy('a', args.order_by);
+
+  let sql = `SELECT a.* FROM authors a ${clause} ${orderBy}`;
+  if (args.limit) sql += ` LIMIT ${args.limit}`;
+  if (args.offset) sql += ` OFFSET ${args.offset}`;
+
+  return query(sql, whereParams);
+}
+
+// Polling loop
+async function pollLiveQueries() {
+  for (const [key, entry] of liveQueryState.entries()) {
+    const { args, user } = entry;
+
+    const rows = await runDynamicAuthorQuery(args, user);
+
+    // First run → send full results
+    if (!entry.lastIds) {
+      entry.lastIds = new Set(rows.map(r => r.id));
+      pubsub.publish(key, { author_live: rows });
+      continue;
+    }
+
+    // Find new rows
+    const newRows = rows.filter(r => !entry.lastIds.has(r.id));
+
+    // Update known IDs
+    rows.forEach(r => entry.lastIds.add(r.id));
+
+    if (newRows.length > 0) {
+      pubsub.publish(key, { author_live: newRows });
+    }
+  }
+}
+
+// Start polling
+setInterval(pollLiveQueries, POLL_MS);
 
 export const resolvers = {
   Query: {
@@ -197,28 +257,28 @@ export const resolvers = {
   Subscription: {
     time: {
       subscribe: (_, __, { user }) => {
-        console.log("[SUBSCRIBE] user =", user);
+        requireAuth(user);
+        return pubsub.asyncIterator('TIME_TICK');
+      },
+      resolve: payload => payload?.time || { now: new Date().toISOString() }
+    },
+
+    author_live: {
+      subscribe: (_, args, { user }) => {
         requireAuth(user);
 
-        const iterator = pubsub.asyncIterator('TIME_TICK');
-        console.log("[SUBSCRIBE] iterator created");
-        return iterator;
-      },
+        const key = makeKey(args);
 
-      resolve: (payload) => {
-        console.log("[RESOLVE] raw payload =", payload);
-
-        // First call happens before any events are published
-        if (!payload) {
-          const fallback = { now: new Date().toISOString() };
-          console.log("[RESOLVE] using fallback payload =", fallback);
-          return fallback;
+        if (!liveQueryState.has(key)) {
+          liveQueryState.set(key, {
+            args,
+            user,
+            lastIds: null
+          });
         }
 
-        // Normal case
-        return payload.time;
+        return pubsub.asyncIterator(key);
       }
-
     }
   },
 

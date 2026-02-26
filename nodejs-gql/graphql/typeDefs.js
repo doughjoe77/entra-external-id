@@ -276,5 +276,9 @@ export const typeDefs = `#graphql
   type Subscription {
     time: TimeTick!
   }
+  
+  type Subscription {
+    author_live: [Author!]!
+  }
 `;
 
