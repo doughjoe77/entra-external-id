@@ -103,6 +103,7 @@
             startAutoLogout();
             enableActivityReset();
             startGraphiQLWithAuth();
+            startWebSocketAuth();
             return;
         }
 
@@ -123,6 +124,7 @@
             startAutoLogout();
             enableActivityReset();
             startGraphiQLWithAuth();
+            startWebSocketAuth()
         }
         catch (err) {
             msalInstance.loginRedirect(tokenRequest);
@@ -145,6 +147,37 @@
         // Now load your tree + GraphiQL UI
         import("/public/graphiql.js");
     }
+
+    function startWebSocketAuth() {
+        const token = window.accessToken;
+
+        if (!token) {
+            console.warn("[WS AUTH] No access token available when patching WS auth");
+        }
+
+        // Wrap graphql-ws createClient so every WS client gets the JWT
+        const originalCreateClient = window.graphqlWs.createClient;
+
+        window.graphqlWs.createClient = function patchedCreateClient(options = {}) {
+            const authHeader = "Bearer " + token;
+
+            const patchedOptions = {
+                ...options,
+                connectionParams: () => {
+                    return {
+                        ...(typeof options.connectionParams === "function"
+                            ? options.connectionParams()
+                            : options.connectionParams || {}),
+                        Authorization: authHeader
+                    };
+                }
+            };
+
+            console.log("[WS AUTH] Injecting Authorization:", authHeader);
+            return originalCreateClient(patchedOptions);
+        };
+    }
+
 </script>
 </body>
 </html>

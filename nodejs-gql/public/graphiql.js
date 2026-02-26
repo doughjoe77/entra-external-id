@@ -4,8 +4,6 @@ import { QueryBuilder } from "./query-builder.js";
 
 window.addEventListener("DOMContentLoaded", async () => {
   const builderEl = document.getElementById("builder");
-  const resetBtn = document.getElementById("reset-btn");
-  const copyBtn = document.getElementById("copy-btn");
   const graphiqlEl = document.getElementById("graphiql");
 
   const schema = await loadSchema();
@@ -39,15 +37,4 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   renderGraphiQL();
   renderTree(builderEl, schema, updateQuery);
-
-  resetBtn.addEventListener("click", () => {
-    QueryBuilder.reset();
-    updateQuery("");
-    builderEl.innerHTML = "";
-    renderTree(builderEl, schema, updateQuery);
-  });
-
-  copyBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(currentQuery);
-  });
 });
