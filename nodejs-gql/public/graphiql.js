@@ -10,13 +10,49 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   let currentQuery = "";
 
-  const fetcher = async params => {
-    const res = await fetch("/graphql", {
+  // ⭐ Create the WebSocket client using your patched global createClient
+  let wsClient = null;
+
+  // ⭐ Minimal hybrid fetcher: POST for queries/mutations, WS for subscriptions
+  const fetcher = params => {
+    const isSubscription = /^\s*subscription\b/.test(params?.query);
+
+    if (isSubscription) {
+      return {
+        subscribe: sink => {
+          wsClient = window.graphqlWs.createClient({
+              url:
+                (location.protocol === "https:" ? "wss://" : "ws://") +
+                location.host +
+                "/graphql",
+              lazy: true,
+              connectionParams: {
+                Authorization: "Bearer " + window.accessToken
+              }
+            });
+          const dispose = wsClient.subscribe(params, {
+            next: data => {
+              sink.next?.(data);
+            },
+            error: err => {
+              sink.error?.(err);
+            },
+            complete: () => {
+              sink.complete?.();
+            }
+          });
+
+          // ⭐ GraphiQL requires a cleanup function
+          return { unsubscribe: dispose };
+        }
+      };
+    }
+
+    return fetch("/graphql", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params)
-    });
-    return res.json();
+    }).then(res => res.json());
   };
 
   function renderGraphiQL() {
