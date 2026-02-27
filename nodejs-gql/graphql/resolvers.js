@@ -55,30 +55,90 @@ async function runDynamicAuthorQuery(args, user) {
 }
 
 // Polling loop
+// async function pollLiveQueries() {
+//   for (const [key, entry] of liveQueryState.entries()) {
+//     const { args, user } = entry;
+
+//     const rows = await runDynamicAuthorQuery(args, user);
+
+//     // First run → send full results
+//     if (!entry.lastIds) {
+//       entry.lastIds = new Set(rows.map(r => r.id));
+//       pubsub.publish(key, { author_live: rows });
+//       continue;
+//     }
+
+//     // Find new rows
+//     const newRows = rows.filter(r => !entry.lastIds.has(r.id));
+
+//     // Update known IDs
+//     rows.forEach(r => entry.lastIds.add(r.id));
+
+//     if (newRows.length > 0) {
+//       pubsub.publish(key, { author_live: newRows });
+//     }
+//   }
+// }
+
 async function pollLiveQueries() {
   for (const [key, entry] of liveQueryState.entries()) {
     const { args, user } = entry;
 
     const rows = await runDynamicAuthorQuery(args, user);
 
+    // Convert new rows into a map for comparison
+    const newMap = new Map(rows.map(r => [r.id, r]));
+
     // First run → send full results
-    if (!entry.lastIds) {
-      entry.lastIds = new Set(rows.map(r => r.id));
-      pubsub.publish(key, { author_live: rows });
+    if (!entry.lastRows) {
+      entry.lastRows = newMap;
+      pubsub.publish(key, {
+        author_live: {
+          inserts: rows,
+          updates: [],
+          deletes: []
+        }
+      });
       continue;
     }
 
-    // Find new rows
-    const newRows = rows.filter(r => !entry.lastIds.has(r.id));
+    const oldMap = entry.lastRows;
 
-    // Update known IDs
-    rows.forEach(r => entry.lastIds.add(r.id));
+    const inserts = [];
+    const updates = [];
+    const deletes = [];
 
-    if (newRows.length > 0) {
-      pubsub.publish(key, { author_live: newRows });
+    // Detect inserts + updates
+    for (const [id, newRow] of newMap.entries()) {
+      if (!oldMap.has(id)) {
+        inserts.push(newRow);
+      } else {
+        const oldRow = oldMap.get(id);
+        if (JSON.stringify(oldRow) !== JSON.stringify(newRow)) {
+          updates.push(newRow);
+        }
+      }
+    }
+
+    // Detect deletes
+    for (const [id, oldRow] of oldMap.entries()) {
+      if (!newMap.has(id)) {
+        deletes.push(oldRow);
+      }
+    }
+
+    // Update stored state
+    entry.lastRows = newMap;
+
+    // Only publish if something changed
+    if (inserts.length || updates.length || deletes.length) {
+      pubsub.publish(key, {
+        author_live: { inserts, updates, deletes }
+      });
     }
   }
 }
+
 
 // Start polling
 setInterval(pollLiveQueries, POLL_MS);
@@ -267,19 +327,25 @@ export const resolvers = {
       subscribe: (_, args, { user }) => {
         requireAuth(user);
 
-        const key = makeKey(args);
+        // MUST be a string key
+        const key = JSON.stringify(args || {});
+
+        console.log("[SUBSCRIBE] author_live key =", key);
 
         if (!liveQueryState.has(key)) {
           liveQueryState.set(key, {
             args,
             user,
-            lastIds: null
+            lastRows: null
           });
         }
 
+        // MUST pass the string key, not args
         return pubsub.asyncIterator(key);
       }
     }
+
+
   },
 
   Author: {

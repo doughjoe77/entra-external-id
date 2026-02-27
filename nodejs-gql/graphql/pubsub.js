@@ -4,7 +4,7 @@ import { EventEmitter } from "events";
 class PubSub {
   constructor() {
     this.ee = new EventEmitter();
-    this.ee.setMaxListeners(50);
+    this.ee.setMaxListeners(1000);
   }
 
   publish(event, payload) {
@@ -19,41 +19,42 @@ class PubSub {
     console.log("[PUBSUB] asyncIterator() created for event:", event);
 
     const ee = this.ee;
+    const queue = [];
+    let listening = true;
+
+    const handler = payload => {
+      console.log("[PUBSUB] EVENT RECEIVED:", event, payload);
+      queue.push(payload);
+    };
+
+    ee.on(event, handler);
 
     return {
       async next() {
-        console.log("[PUBSUB] next() called for event:", event);
+        while (queue.length === 0) {
+          if (!listening) {
+            return { value: undefined, done: true };
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
 
-        return new Promise(resolve => {
-          const handler = (payload) => {
-            console.log("[PUBSUB] EVENT RECEIVED:", event);
-            console.log("         payload =", payload);
-
-            ee.removeListener(event, handler);
-
-            const result = { value: payload, done: false };
-            console.log("[PUBSUB] yielding result =", result);
-
-            resolve(result);
-          };
-
-          console.log("[PUBSUB] listener attached for event:", event);
-          ee.on(event, handler);
-        });
+        const value = queue.shift();
+        return { value, done: false };
       },
 
       return() {
-        console.log("[PUBSUB] return() called for event:", event);
+        listening = false;
+        ee.removeListener(event, handler);
         return { value: undefined, done: true };
       },
 
       throw(error) {
-        console.log("[PUBSUB] throw() called:", error);
+        listening = false;
+        ee.removeListener(event, handler);
         throw error;
       },
 
       [Symbol.asyncIterator]() {
-        console.log("[PUBSUB] Symbol.asyncIterator() called for event:", event);
         return this;
       }
     };

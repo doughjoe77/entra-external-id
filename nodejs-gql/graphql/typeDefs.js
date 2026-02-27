@@ -263,6 +263,7 @@ export const typeDefs = `#graphql
     update_book(where: BookBoolExp!, changes: BookUpdateInput!): [Book!]!
     delete_book(where: BookBoolExp!): [Book!]!
   }
+
   # -------------------------------------------------------
   # Subscription Types
   # -------------------------------------------------------
@@ -270,15 +271,23 @@ export const typeDefs = `#graphql
     now: String!
   }
 
+  type AuthorLivePayload {
+    inserts: [Author!]!
+    updates: [Author!]!
+    deletes: [Author!]!
+  }
+
   # -------------------------------------------------------
   # Root Subscription
   # -------------------------------------------------------
   type Subscription {
     time: TimeTick!
-  }
-  
-  type Subscription {
-    author_live: [Author!]!
+
+    author_live(
+      where: AuthorBoolExp
+      limit: Int
+      offset: Int
+      order_by: AuthorOrderBy
+    ): AuthorLivePayload!
   }
 `;
-
