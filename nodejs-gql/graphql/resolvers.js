@@ -15,12 +15,9 @@ import {
   buildDeleteSql
 } from './sqlBuilder.js';
 
-//import PubSub from './pubsub.js';
 import { pubsub } from './pubsub.js';
 
 import { requireAuth } from '../requireAuth.js';
-
-//const pubsub = new PubSub();
 
 const AUTHOR_COLUMNS = ['id', 'name', 'country', 'birth_year'];
 const BOOK_COLUMNS = ['id', 'title', 'year', 'author_id'];
@@ -33,6 +30,10 @@ const liveQueryState = new Map();
 
 // Poll interval from .env
 const POLL_MS = parseInt(process.env.LIVE_QUERY_POLL_MS || "30000", 10);
+
+// supports timer subscription
+let timeSubscribers = 0;
+let timeInterval = null;
 
 // Create stable key for subscription args
 function makeKey(args) {
@@ -53,32 +54,6 @@ async function runDynamicAuthorQuery(args, user) {
 
   return query(sql, whereParams);
 }
-
-// Polling loop
-// async function pollLiveQueries() {
-//   for (const [key, entry] of liveQueryState.entries()) {
-//     const { args, user } = entry;
-
-//     const rows = await runDynamicAuthorQuery(args, user);
-
-//     // First run → send full results
-//     if (!entry.lastIds) {
-//       entry.lastIds = new Set(rows.map(r => r.id));
-//       pubsub.publish(key, { author_live: rows });
-//       continue;
-//     }
-
-//     // Find new rows
-//     const newRows = rows.filter(r => !entry.lastIds.has(r.id));
-
-//     // Update known IDs
-//     rows.forEach(r => entry.lastIds.add(r.id));
-
-//     if (newRows.length > 0) {
-//       pubsub.publish(key, { author_live: newRows });
-//     }
-//   }
-// }
 
 async function pollLiveQueries() {
   for (const [key, entry] of liveQueryState.entries()) {
@@ -318,8 +293,36 @@ export const resolvers = {
     time: {
       subscribe: (_, __, { user }) => {
         requireAuth(user);
-        return pubsub.asyncIterator('TIME_TICK');
+
+        timeSubscribers++;
+
+        // Start timer if this is the first subscriber
+        if (timeSubscribers === 1) {
+          console.log("[TIME] starting TIME_TICK interval");
+          timeInterval = setInterval(() => {
+            pubsub.publish("TIME_TICK", {
+              time: { now: new Date().toISOString() }
+            });
+          }, 60000); // 1 minute
+        }
+
+        // Cleanup callback when client disconnects
+        const onStop = () => {
+          timeSubscribers--;
+
+          console.log("[TIME] subscriber disconnected, remaining =", timeSubscribers);
+
+          // Stop timer if no subscribers left
+          if (timeSubscribers === 0) {
+            console.log("[TIME] stopping TIME_TICK interval");
+            clearInterval(timeInterval);
+            timeInterval = null;
+          }
+        };
+
+        return pubsub.asyncIterator("TIME_TICK", onStop);
       },
+
       resolve: payload => payload?.time || { now: new Date().toISOString() }
     },
 
@@ -327,11 +330,10 @@ export const resolvers = {
       subscribe: (_, args, { user }) => {
         requireAuth(user);
 
-        // MUST be a string key
         const key = JSON.stringify(args || {});
-
         console.log("[SUBSCRIBE] author_live key =", key);
 
+        // Create entry if new
         if (!liveQueryState.has(key)) {
           liveQueryState.set(key, {
             args,
@@ -340,10 +342,30 @@ export const resolvers = {
           });
         }
 
-        // MUST pass the string key, not args
-        return pubsub.asyncIterator(key);
+        // Start polling if not running
+        if (!global.liveQueryInterval) {
+          console.log("[POLL] starting interval");
+          global.liveQueryInterval = setInterval(pollLiveQueries, POLL_MS);
+        }
+
+        // Cleanup callback when client disconnects
+        const onStop = () => {
+          console.log("[UNSUBSCRIBE] removing key", key);
+          liveQueryState.delete(key);
+
+          // Stop polling if no subscribers left
+          if (liveQueryState.size === 0) {
+            console.log("[POLL] stopping interval");
+            clearInterval(global.liveQueryInterval);
+            global.liveQueryInterval = null;
+          }
+        };
+
+        // Pass cleanup callback to pubsub
+        return pubsub.asyncIterator(key, onStop);
       }
     }
+
 
 
   },

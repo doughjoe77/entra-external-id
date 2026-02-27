@@ -104,19 +104,6 @@ useServer(
 );
 
 // ------------------------------------------------------------
-// TIME TICK PUBLISHER (1 minute)
-// ------------------------------------------------------------
-setInterval(() => {
-  const tick = {
-    time: { now: new Date().toISOString() }
-  };
-
-  console.log("[PUBLISH] sending =", tick);
-
-  pubsub.publish('TIME_TICK', tick);
-}, 60_000);
-
-// ------------------------------------------------------------
 // GraphiQL config + static UI
 // ------------------------------------------------------------
 app.get('/graphiql/config.js', (req, res) => {

@@ -15,43 +15,35 @@ class PubSub {
     this.ee.emit(event, payload);
   }
 
-  asyncIterator(event) {
-    console.log("[PUBSUB] asyncIterator() created for event:", event);
-
+  asyncIterator(event, onStop) {
     const ee = this.ee;
     const queue = [];
     let listening = true;
 
-    const handler = payload => {
-      console.log("[PUBSUB] EVENT RECEIVED:", event, payload);
-      queue.push(payload);
-    };
-
+    const handler = payload => queue.push(payload);
     ee.on(event, handler);
 
     return {
       async next() {
         while (queue.length === 0) {
-          if (!listening) {
-            return { value: undefined, done: true };
-          }
-          await new Promise(resolve => setTimeout(resolve, 10));
+          if (!listening) return { value: undefined, done: true };
+          await new Promise(r => setTimeout(r, 10));
         }
-
-        const value = queue.shift();
-        return { value, done: false };
+        return { value: queue.shift(), done: false };
       },
 
       return() {
         listening = false;
         ee.removeListener(event, handler);
+        if (onStop) onStop();   // 🔥 notify resolver that client disconnected
         return { value: undefined, done: true };
       },
 
-      throw(error) {
+      throw(err) {
         listening = false;
         ee.removeListener(event, handler);
-        throw error;
+        if (onStop) onStop();
+        throw err;
       },
 
       [Symbol.asyncIterator]() {
@@ -59,6 +51,7 @@ class PubSub {
       }
     };
   }
+
 }
 
 export const pubsub = new PubSub();
