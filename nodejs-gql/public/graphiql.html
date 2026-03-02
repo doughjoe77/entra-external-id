@@ -21,9 +21,7 @@
 </header>
 
 <div id="layout">
-
     <div id="builder"></div>
-
     <div id="graphiql"></div>
 </div>
 
@@ -33,156 +31,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/graphql-ws@5.14.0/umd/graphql-ws.min.js"></script>
 
-
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
+<!-- All logic now lives here -->
 <script type="module" src="/public/graphiql.js"></script>
 
-<script>
-    // -------------------------------------------------------
-    // MSAL configuration
-    // -------------------------------------------------------
-    const msalConfig = {
-        auth: {
-            clientId: window.appConfig.clientId,
-            authority: window.appConfig.authority,
-            redirectUri: window.appConfig.redirectUri
-        },
-        cache: {
-            cacheLocation: "localStorage",
-            storeAuthStateInCookie: false
-        }
-    };
-
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-    const tokenRequest = {
-        scopes: [window.appConfig.apiScope]
-    };
-
-    let accessToken = null;
-
-    // -------------------------------------------------------
-    // Rolling inactivity logout
-    // -------------------------------------------------------
-    let logoutTimer = null;
-
-    function startAutoLogout() {
-        const minutes = parseInt(window.appConfig.logoutMinutes, 10);
-        const ms = minutes * 60 * 1000;
-
-        if (logoutTimer) clearTimeout(logoutTimer);
-
-        logoutTimer = setTimeout(() => {
-            msalInstance.logoutRedirect({
-                postLogoutRedirectUri: window.location.origin + "/public/logout.html"
-            });
-        }, ms);
-    }
-
-    function enableActivityReset() {
-        ["click", "keydown", "mousemove", "scroll"].forEach(evt => {
-            document.addEventListener(evt, startAutoLogout);
-        });
-    }
-
-    // -------------------------------------------------------
-    // Logout button
-    // -------------------------------------------------------
-    document.getElementById("logoutBtn").onclick = () => {
-        const account = msalInstance.getActiveAccount();
-        msalInstance.logoutRedirect({
-            account,
-            postLogoutRedirectUri: window.location.origin + "/public/logout.html"
-        });
-    };
-
-    // -------------------------------------------------------
-    // Handle MSAL redirect login
-    // -------------------------------------------------------
-    msalInstance.handleRedirectPromise().then(async (result) => {
-
-        if (result && result.accessToken) {
-            accessToken = result.accessToken;
-            startAutoLogout();
-            enableActivityReset();
-            startGraphiQLWithAuth();
-            startWebSocketAuth();
-            return;
-        }
-
-        const accounts = msalInstance.getAllAccounts();
-
-        if (accounts.length === 0) {
-            msalInstance.loginRedirect(tokenRequest);
-            return;
-        }
-
-        try {
-            const silent = await msalInstance.acquireTokenSilent({
-                ...tokenRequest,
-                account: accounts[0]
-            });
-
-            accessToken = silent.accessToken;
-            window.accessToken = accessToken;
-            startAutoLogout();
-            enableActivityReset();
-            startGraphiQLWithAuth();
-            startWebSocketAuth()
-        }
-        catch (err) {
-            msalInstance.loginRedirect(tokenRequest);
-        }
-    });
-
-    // -------------------------------------------------------
-    // Inject Authorization header into your existing fetcher
-    // -------------------------------------------------------
-    function startGraphiQLWithAuth() {
-        // Patch global fetch to inject Authorization header
-        const originalFetch = window.fetch;
-
-        window.fetch = function(url, options = {}) {
-            options.headers = options.headers || {};
-            options.headers["Authorization"] = "Bearer " + accessToken;
-            return originalFetch(url, options);
-        };
-
-        // Now load your tree + GraphiQL UI
-        import("/public/graphiql.js");
-    }
-
-    function startWebSocketAuth() {
-        const token = window.accessToken;
-
-        if (!token) {
-            console.warn("[WS AUTH] No access token available when patching WS auth");
-        }
-
-        // Wrap graphql-ws createClient so every WS client gets the JWT
-        const originalCreateClient = window.graphqlWs.createClient;
-
-        window.graphqlWs.createClient = function patchedCreateClient(options = {}) {
-            const authHeader = "Bearer " + token;
-
-            const patchedOptions = {
-                ...options,
-                connectionParams: () => {
-                    return {
-                        ...(typeof options.connectionParams === "function"
-                            ? options.connectionParams()
-                            : options.connectionParams || {}),
-                        Authorization: authHeader
-                    };
-                }
-            };
-
-            console.log("[WS AUTH] Injecting Authorization:", authHeader);
-            return originalCreateClient(patchedOptions);
-        };
-    }
-
-</script>
 </body>
 </html>
