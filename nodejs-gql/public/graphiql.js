@@ -1,6 +1,5 @@
 // public/graphiql.js
 import { loadSchema, renderTree } from "./schema-and-tree.js";
-import { QueryBuilder } from "./query-builder.js";
 
 // -------------------------------------------------------
 // MSAL configuration
