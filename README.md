@@ -56,10 +56,11 @@ query{
 I went down a bit of rabbit hole on this, but this is an Apollo / Express NodeJS GraphQL API example that:
 - will auto authenticate with Entra when you hit the GraphiQL page at http://localhost:4001/graphiql
 - added a tree view explorer to GraphiQL that uses the introspection data to build a tree that helps with creating the GraphQL queries and mutations, this was needed due to the complexities of the *where* clause sections that mimic Hasura and Hot Chocolate style GraphQL APIs
-### Outstanding
-- no visible JWT in the "Headers" section of GraphiQL, right not that’s being injected into Graph calls in JavaScript
-- no subscriptions available yet....
-- no query depth controls
+turn on | off introspection — Controls whether clients can discover your schema. Turning it off in production reduces reconnaissance and prevents attackers from mapping objects and fields, aligning with OWASP API1 (Broken Object Level Authorization) and API3 (Broken Object Property Level Authorization), as well as the OWASP GraphQL Cheat Sheet recommendation to disable introspection outside development.
+- turn on | off graphiql UI — Controls whether the in‑browser GraphQL editor is exposed. Disabling it removes a powerful exploration tool that attackers could use to craft malicious queries, aligning with OWASP API1 and API4 (Unrestricted Resource Consumption) by reducing the attack surface and preventing unauthenticated interactive querying.
+- query depth checks — Limits how deeply nested a query can be. This prevents recursive or deeply nested resolver chains that can overwhelm the server, directly mitigating OWASP API4 (Unrestricted Resource Consumption) and following the OWASP GraphQL Cheat Sheet guidance to enforce maximum query depth.
+- query complexity checks — Assigns a cost to each field and rejects queries that exceed a safe total cost. This stops wide or computationally expensive queries that could exhaust CPU, memory, or database resources, aligning with OWASP API4 and the OWASP GraphQL Cheat Sheet recommendation to enforce query complexity limits.
+### OUTSTANDING
 - no query allow lists, which is something I might leave configurable in the example
 ``` gql
 # sample query with filtering, and a limit of records returned applied
@@ -77,6 +78,63 @@ query {
 # sample query that will pull the claims out of the JWT being passed and display them in the JSON results
 query {
   whoami
+}
+# simple subscription that returns the time
+subscription {
+  time {
+    now
+  }
+}
+# subscription listening to changes on the author table
+subscription {
+  author_live {
+    inserts {
+      id
+      name
+      country
+      birth_year
+    }
+    updates {
+      id
+      name
+      birth_year
+    }
+    deletes {
+      id
+      name
+      birth_year
+    }
+  }
+}
+# query that has too many nested objects and will fail with an error of 'exceeds maximum operation depth of X'
+query {
+  authors{
+    name
+    books{
+      title
+      author{
+        name
+        books{
+          year
+          author{
+            country
+            books{
+              id
+              author{
+                birth_year
+                books{
+                  id
+                  author{
+                    country
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 ```
 
